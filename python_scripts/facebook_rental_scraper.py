@@ -364,7 +364,18 @@ if __name__ == "__main__":
                     min_bedrooms=args.min_bedrooms,
                     max_listings=10
                 )
-                scraper.save_to_json(f"{args.location.replace(' ', '_').lower()}_rentals.json")
+                filename = f"{args.location.replace(' ', '_').lower()}_rentals.json"
+                scraper.save_to_json(filename)
+                
+                # Output JSON result for API
+                result = {
+                    "status": "success",
+                    "location": args.location,
+                    "listings_found": len(listings),
+                    "filename": filename,
+                    "message": f"Successfully scraped {len(listings)} rental listings for {args.location}"
+                }
+                print(json.dumps(result))
                 return listings
             
             asyncio.run(run())

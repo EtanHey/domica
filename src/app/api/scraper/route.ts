@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (stderr && !stderr.includes("WARNING")) {
+    // Check if stderr contains actual errors or just logging
+    if (stderr && !stderr.includes("WARNING") && !stderr.includes("INFO")) {
       console.error("Python script error:", stderr);
       return NextResponse.json(
         { error: "Script execution failed", details: stderr },
