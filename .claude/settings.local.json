@@ -46,7 +46,9 @@
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:developer.nylas.com)",
-      "Bash(npx shadcn@latest init:*)"
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   },

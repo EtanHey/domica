@@ -48,3 +48,4 @@ Use `// <scratchpad>` or `// AI-DEV:` for important implementation notes that ot
 - Optimize for performance with large datasets
 - Implement filtering and search capabilities
 - Consider implementing map view for rentals
+- Commit often to keep changes minimal and incremental
