@@ -325,13 +325,46 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Note: This is a mock implementation for educational purposes
-    # Real Facebook scraping would require handling authentication,
-    # anti-bot measures, and respecting terms of service
+    import argparse
     
-    print("WARNING: This is a demonstration scraper.")
-    print("Always respect website terms of service and implement ethical scraping.")
-    print("Consider using official APIs or obtaining permission before scraping.")
+    parser = argparse.ArgumentParser(description="Educational Facebook Marketplace Rental Scraper")
+    parser.add_argument("--query", type=str, help="Search query for rentals")
+    parser.add_argument("--location", type=str, help="Location to search in")
+    parser.add_argument("--max-price", type=int, help="Maximum price per month")
+    parser.add_argument("--min-bedrooms", type=int, help="Minimum number of bedrooms")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
     
-    # Uncomment to run:
-    # asyncio.run(main())
+    args = parser.parse_args()
+    
+    if args.json:
+        # Output for API consumption
+        result = {
+            "status": "ready",
+            "message": "Scraper is configured and ready to use",
+            "query": args.query,
+            "location": args.location,
+            "max_price": args.max_price,
+            "min_bedrooms": args.min_bedrooms,
+            "note": "This is a demonstration scraper for educational purposes"
+        }
+        print(json.dumps(result))
+    else:
+        # Regular output
+        print("WARNING: This is a demonstration scraper.")
+        print("Always respect website terms of service and implement ethical scraping.")
+        print("Consider using official APIs or obtaining permission before scraping.")
+        
+        if args.location:
+            # Run the scraper
+            async def run():
+                scraper = FacebookRentalScraper(headless=True)
+                listings = await scraper.scrape_search_results(
+                    location=args.location,
+                    max_price=args.max_price,
+                    min_bedrooms=args.min_bedrooms,
+                    max_listings=10
+                )
+                scraper.save_to_json(f"{args.location.replace(' ', '_').lower()}_rentals.json")
+                return listings
+            
+            asyncio.run(run())

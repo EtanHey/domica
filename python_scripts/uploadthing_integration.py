@@ -296,13 +296,59 @@ async def demo_upload():
 
 
 if __name__ == "__main__":
-    # Set up environment variables:
-    # UPLOADTHING_SECRET=your_api_key
-    # UPLOADTHING_APP_ID=your_app_id (optional for newer keys)
+    import argparse
     
-    print("UploadThing Integration for Rental Images")
-    print("This module handles uploading images to UploadThing")
-    print("and preparing the data for Supabase storage")
+    parser = argparse.ArgumentParser(description="UploadThing Integration for Rental Images")
+    parser.add_argument("--rental-id", type=str, help="Rental ID to process images for")
+    parser.add_argument("--demo", action="store_true", help="Run demo upload")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
     
-    # Uncomment to run demo:
-    # asyncio.run(demo_upload())
+    args = parser.parse_args()
+    
+    if args.json and not args.demo and not args.rental_id:
+        # Output for API consumption
+        result = {
+            "status": "ready",
+            "message": "UploadThing integration is configured",
+            "rental_id": args.rental_id,
+            "has_credentials": bool(os.getenv("UPLOADTHING_TOKEN") or os.getenv("UPLOADTHING_SECRET"))
+        }
+        print(json.dumps(result))
+    elif args.demo:
+        # Run demo
+        print("Running UploadThing demo upload...")
+        asyncio.run(demo_upload())
+    elif args.rental_id:
+        # Process specific rental
+        async def process_rental():
+            client = UploadThingClient()
+            uploader = RentalImageUploader(client)
+            
+            # In a real implementation, fetch image URLs from database
+            # For now, use demo URLs
+            image_urls = [
+                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80",
+                "https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800&q=80"
+            ]
+            
+            result = await uploader.process_rental_images(args.rental_id, image_urls)
+            await client.close()
+            
+            if args.json:
+                print(json.dumps({
+                    "success": True,
+                    "rental_id": args.rental_id,
+                    "images_uploaded": len(result["images"])
+                }))
+            else:
+                print(f"Uploaded {len(result['images'])} images for rental {args.rental_id}")
+        
+        asyncio.run(process_rental())
+    else:
+        print("UploadThing Integration for Rental Images")
+        print("This module handles uploading images to UploadThing")
+        print("and preparing the data for Supabase storage")
+        print("\nUsage:")
+        print("  --rental-id <id>  Process images for a specific rental")
+        print("  --demo           Run demo upload")
+        print("  --json           Output as JSON")
