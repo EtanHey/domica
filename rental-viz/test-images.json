@@ -1,0 +1,45 @@
+{
+  "images": [
+    {
+      "name": "modern-apartment-living-room",
+      "description": "Modern apartment living room with city view",
+      "url": "PASTE_IMAGE_URL_HERE_1"
+    },
+    {
+      "name": "cozy-bedroom",
+      "description": "Cozy bedroom with natural light",
+      "url": "PASTE_IMAGE_URL_HERE_2"
+    },
+    {
+      "name": "kitchen-dining",
+      "description": "Open kitchen and dining area",
+      "url": "PASTE_IMAGE_URL_HERE_3"
+    },
+    {
+      "name": "bathroom-modern",
+      "description": "Modern bathroom with shower",
+      "url": "PASTE_IMAGE_URL_HERE_4"
+    },
+    {
+      "name": "balcony-view",
+      "description": "Balcony with city view",
+      "url": "PASTE_IMAGE_URL_HERE_5"
+    },
+    {
+      "name": "building-exterior",
+      "description": "Building exterior and entrance",
+      "url": "PASTE_IMAGE_URL_HERE_6"
+    },
+    {
+      "name": "amenities-gym",
+      "description": "Building gym facilities",
+      "url": "PASTE_IMAGE_URL_HERE_7"
+    },
+    {
+      "name": "amenities-pool",
+      "description": "Rooftop pool area",
+      "url": "PASTE_IMAGE_URL_HERE_8"
+    }
+  ],
+  "instructions": "Replace PASTE_IMAGE_URL_HERE_X with actual image URLs you want to upload to UploadThing"
+}
