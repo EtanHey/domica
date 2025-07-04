@@ -28,20 +28,20 @@ class RentalListing:
     """Data structure for rental listings"""
     facebook_id: str
     title: str
-    description: Optional[str]
-    price_per_month: Optional[float]
-    currency: str = "USD"
-    location_text: Optional[str]
-    bedrooms: Optional[int]
-    bathrooms: Optional[float]
-    property_type: Optional[str]
-    image_urls: List[str]
-    landlord_name: Optional[str]
-    landlord_profile_url: Optional[str]
     listing_url: str
     scraped_at: datetime
-    available_date: Optional[str]
+    image_urls: List[str]
     amenities: List[str]
+    description: Optional[str] = None
+    price_per_month: Optional[float] = None
+    currency: str = "USD"
+    location_text: Optional[str] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[float] = None
+    property_type: Optional[str] = None
+    landlord_name: Optional[str] = None
+    landlord_profile_url: Optional[str] = None
+    available_date: Optional[str] = None
 
 class FacebookRentalScraper:
     """
@@ -179,6 +179,13 @@ class FacebookRentalScraper:
         mock_listing = RentalListing(
             facebook_id="mock_" + str(random.randint(100000, 999999)),
             title="Beautiful 2BR Apartment in Downtown",
+            listing_url=listing_url,
+            scraped_at=datetime.now(),
+            image_urls=[
+                "https://example.com/image1.jpg",
+                "https://example.com/image2.jpg"
+            ],
+            amenities=["Parking", "Pet Friendly", "In-unit Laundry"],
             description="Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
             price_per_month=1500.0,
             currency="USD",
@@ -186,16 +193,9 @@ class FacebookRentalScraper:
             bedrooms=2,
             bathrooms=1.5,
             property_type="apartment",
-            image_urls=[
-                "https://example.com/image1.jpg",
-                "https://example.com/image2.jpg"
-            ],
             landlord_name="John Doe",
             landlord_profile_url="https://facebook.com/profile/johndoe",
-            listing_url=listing_url,
-            scraped_at=datetime.now(),
-            available_date="2024-02-01",
-            amenities=["Parking", "Pet Friendly", "In-unit Laundry"]
+            available_date="2024-02-01"
         )
         
         self._random_delay()
