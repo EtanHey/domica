@@ -18,6 +18,7 @@ A Next.js application to visualize rental listings scraped from Facebook Marketp
 3. Use TanStack Query for data fetching and caching
 4. TypeScript for type safety
 5. Creative database schema for Facebook rental scraping
+6. Mobile-first responsive design
 
 ## Database Schema Design
 ### Tables to create:
@@ -49,3 +50,5 @@ Use `// <scratchpad>` or `// AI-DEV:` for important implementation notes that ot
 - Implement filtering and search capabilities
 - Consider implementing map view for rentals
 - Commit often to keep changes minimal and incremental
+- Use Context7 MCP tool for accessing library documentation
+- Check browser tools (takeScreenshot) after making client-side changes
