@@ -1,0 +1,256 @@
+{
+  "scraped_at": "2025-07-04T12:49:52.092957",
+  "total_listings": 10,
+  "listings": [
+    {
+      "facebook_id": "mock_191939",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/0",
+      "scraped_at": "2025-07-04 12:49:44.219956",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_378988",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/1",
+      "scraped_at": "2025-07-04 12:49:44.787041",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_557546",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/2",
+      "scraped_at": "2025-07-04 12:49:45.710122",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_400540",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/3",
+      "scraped_at": "2025-07-04 12:49:46.336048",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_640961",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/4",
+      "scraped_at": "2025-07-04 12:49:47.006323",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_180282",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/5",
+      "scraped_at": "2025-07-04 12:49:47.622173",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_569552",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/6",
+      "scraped_at": "2025-07-04 12:49:48.613657",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_547919",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/7",
+      "scraped_at": "2025-07-04 12:49:49.602088",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_970496",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/8",
+      "scraped_at": "2025-07-04 12:49:50.534554",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    },
+    {
+      "facebook_id": "mock_835116",
+      "title": "Beautiful 2BR Apartment in Downtown",
+      "listing_url": "https://facebook.com/marketplace/item/9",
+      "scraped_at": "2025-07-04 12:49:51.372048",
+      "image_urls": [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.jpg"
+      ],
+      "amenities": [
+        "Parking",
+        "Pet Friendly",
+        "In-unit Laundry"
+      ],
+      "description": "Spacious 2 bedroom apartment with modern amenities. Pet friendly, parking included.",
+      "price_per_month": 1500.0,
+      "currency": "USD",
+      "location_text": "Downtown, Example City",
+      "bedrooms": 2,
+      "bathrooms": 1.5,
+      "property_type": "apartment",
+      "landlord_name": "John Doe",
+      "landlord_profile_url": "https://facebook.com/profile/johndoe",
+      "available_date": "2024-02-01"
+    }
+  ]
+}
