@@ -9,6 +9,9 @@ interface ScrapeYad2Params {
 
 interface ScrapeYad2Response {
   listings: number;
+  created: number;
+  updated: number;
+  duplicates: number;
   message: string;
 }
 
@@ -43,9 +46,20 @@ export function useScrapeYad2() {
       return data;
     },
     onSuccess: (data) => {
+      // Build detailed message
+      const details = [];
+      if (data.created > 0) details.push(`${data.created} נוספו`);
+      if (data.updated > 0) details.push(`${data.updated} עודכנו`);
+      if (data.duplicates > 0) details.push(`${data.duplicates} כפילויות נמצאו`);
+      
+      const description = details.length > 0 
+        ? details.join(', ')
+        : 'לא נמצאו דירות חדשות';
+
       toast({
-        title: 'Success',
-        description: 'הדירות יובאו בהצלחה',
+        title: 'סיום סריקה',
+        description,
+        className: 'bg-background border-2',
       });
 
       // Invalidate rentals query to show new listings
@@ -55,9 +69,10 @@ export function useScrapeYad2() {
     },
     onError: (error) => {
       toast({
-        title: 'Error',
+        title: 'שגיאה',
         description: error instanceof Error ? error.message : 'שגיאה בייבוא',
         variant: 'destructive',
+        className: 'bg-destructive text-destructive-foreground border-2',
       });
     },
   });

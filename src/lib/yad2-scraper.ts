@@ -472,7 +472,7 @@ export class Yad2Scraper {
   /**
    * Save listing to Supabase with duplicate detection
    */
-  async saveListing(listing: Yad2Listing): Promise<void> {
+  async saveListing(listing: Yad2Listing): Promise<'created' | 'updated' | 'duplicate' | 'error'> {
     try {
       // Extract location coordinates if possible (for now, using a placeholder)
       // In production, you'd use a geocoding service
@@ -507,7 +507,7 @@ export class Yad2Scraper {
           duplicateResult.matchedRental!.id,
           rentalInput
         );
-        return;
+        return 'duplicate';
       }
 
       if (duplicateResult.action === 'update') {
@@ -528,7 +528,7 @@ export class Yad2Scraper {
           .eq('facebook_id', listing.yad2_id);
 
         if (updateError) throw updateError;
-        return;
+        return 'updated';
       }
 
       if (duplicateResult.action === 'review') {
@@ -619,6 +619,7 @@ export class Yad2Scraper {
       }
 
       console.log(`Successfully saved listing: ${listing.title}`);
+      return 'created';
     } catch (error) {
       console.error('Error saving listing:', error);
       throw error;
@@ -634,12 +635,18 @@ export class Yad2Scraper {
   ): Promise<{
     success: boolean;
     listings: number;
+    created: number;
+    updated: number;
+    duplicates: number;
     message: string;
     errors?: string[];
   }> {
     try {
       const listings = await this.scrapeYad2(url, maxListings);
       let savedCount = 0;
+      let createdCount = 0;
+      let updatedCount = 0;
+      let duplicateCount = 0;
       const errors: string[] = [];
 
       for (const listing of listings) {
@@ -650,8 +657,21 @@ export class Yad2Scraper {
             listing.price = 0; // Set to 0 to indicate price needs review
           }
           
-          await this.saveListing(listing);
-          savedCount++;
+          const result = await this.saveListing(listing);
+          
+          switch (result) {
+            case 'created':
+              createdCount++;
+              savedCount++;
+              break;
+            case 'updated':
+              updatedCount++;
+              savedCount++;
+              break;
+            case 'duplicate':
+              duplicateCount++;
+              break;
+          }
         } catch (error) {
           const errorMsg = `Failed to save "${listing.title}": ${error instanceof Error ? error.message : 'Unknown error'}`;
           console.error(errorMsg);
@@ -662,13 +682,19 @@ export class Yad2Scraper {
       return {
         success: savedCount > 0,
         listings: savedCount,
-        message: `Successfully scraped ${savedCount} out of ${listings.length} listings from Yad2`,
+        created: createdCount,
+        updated: updatedCount,
+        duplicates: duplicateCount,
+        message: `Successfully processed ${listings.length} listings from Yad2`,
         errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error) {
       return {
         success: false,
         listings: 0,
+        created: 0,
+        updated: 0,
+        duplicates: 0,
         message: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }

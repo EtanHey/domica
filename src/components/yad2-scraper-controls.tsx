@@ -21,6 +21,7 @@ export function Yad2ScraperControls() {
         title: 'שגיאה',
         description: 'נא להזין כתובת URL',
         variant: 'destructive',
+        className: 'bg-destructive text-destructive-foreground border-2',
       });
       return;
     }
@@ -30,6 +31,7 @@ export function Yad2ScraperControls() {
         title: 'שגיאה',
         description: 'כתובת URL לא חוקית',
         variant: 'destructive',
+        className: 'bg-destructive text-destructive-foreground border-2',
       });
       return;
     }
