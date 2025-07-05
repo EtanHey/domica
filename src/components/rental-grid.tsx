@@ -1,8 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import { RentalCard } from './rental-card';
 import { useRentals } from '@/hooks/use-rentals';
 import type { RentalWithRelations } from '@/types/rental';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 // AI-DEV: Main grid component for displaying rental listings
 // <scratchpad>Uses custom hook with TanStack Query for data fetching</scratchpad>
@@ -12,7 +22,8 @@ interface RentalGridProps {
 }
 
 export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
-  const { data: rentals, isLoading, error } = useRentals();
+  const [page, setPage] = useState(1);
+  const { data, isLoading, error } = useRentals({ page, limit: 20 });
 
   if (isLoading) {
     return (
@@ -32,7 +43,10 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
     );
   }
 
-  if (!rentals || rentals.length === 0) {
+  const rentals = data?.rentals || [];
+  const totalPages = data?.totalPages || 1;
+
+  if (!data || rentals.length === 0) {
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground text-lg">אין נתונים להצגה</p>
@@ -53,12 +67,13 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
   return (
     <div className="space-y-4">
       <p dir="rtl" className="text-muted-foreground">
-        מציג {activeRentals.length}{' '}
+        מציג {activeRentals.length} מתוך {data.totalCount}{' '}
         {listingType === 'rent'
           ? 'דירות להשכרה'
           : listingType === 'sale'
             ? 'דירות למכירה'
             : 'נכסים'}
+        {page > 1 && ` (עמוד ${page})`}
       </p>
 
       <div dir="rtl" className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -81,6 +96,68 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
           />
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="mt-8 flex justify-center">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (page > 1) setPage(page - 1);
+                  }}
+                  className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              
+              {[...Array(totalPages)].map((_, i) => {
+                const pageNum = i + 1;
+                // Show first page, last page, current page, and pages around current
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= page - 1 && pageNum <= page + 1)
+                ) {
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(pageNum);
+                        }}
+                        isActive={pageNum === page}
+                        className="cursor-pointer"
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                } else if (
+                  (pageNum === page - 2 && page > 3) ||
+                  (pageNum === page + 2 && page < totalPages - 2)
+                ) {
+                  return <PaginationEllipsis key={pageNum} />;
+                }
+                return null;
+              })}
+              
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (page < totalPages) setPage(page + 1);
+                  }}
+                  className={page === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,10 +8,17 @@ interface RentalFilters {
   minRooms?: number;
   maxPrice?: number;
   propertyType?: string;
+  page?: number;
+  limit?: number;
 }
 
-// Fetch all rentals with optional filters
+// Fetch all rentals with optional filters and pagination
 export function useRentals(filters?: RentalFilters) {
+  const page = filters?.page || 1;
+  const limit = filters?.limit || 20;
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
   return useQuery({
     queryKey: filters ? QueryKeys.rentals.list(filters) : QueryKeys.rentals.all,
     queryFn: async () => {
@@ -28,10 +35,12 @@ export function useRentals(filters?: RentalFilters) {
             name,
             profile_image_url
           )
-        `
+        `,
+          { count: 'exact' }
         )
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       // Apply filters if provided
       if (filters?.city) {
@@ -47,14 +56,20 @@ export function useRentals(filters?: RentalFilters) {
         query = query.eq('property_type', filters.propertyType);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
 
       if (error) {
         console.error('Error fetching rentals:', error);
         throw error;
       }
 
-      return data || [];
+      return {
+        rentals: data || [],
+        totalCount: count || 0,
+        page,
+        limit,
+        totalPages: Math.ceil((count || 0) / limit)
+      };
     },
   });
 }
