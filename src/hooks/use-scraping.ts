@@ -59,7 +59,7 @@ export function useScrapeYad2() {
       toast({
         title: 'סיום סריקה',
         description,
-        className: 'bg-background border-2',
+        className: '!bg-white dark:!bg-gray-950 !border-2 !border-gray-200 dark:!border-gray-800',
       });
 
       // Invalidate rentals query to show new listings
@@ -72,7 +72,7 @@ export function useScrapeYad2() {
         title: 'שגיאה',
         description: error instanceof Error ? error.message : 'שגיאה בייבוא',
         variant: 'destructive',
-        className: 'bg-destructive text-destructive-foreground border-2',
+        className: '!bg-red-600 !text-white !border-2 !border-red-700',
       });
     },
   });
