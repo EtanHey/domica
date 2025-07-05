@@ -1,0 +1,156 @@
+{
+  "scanDate": "2025-07-05T19:56:42.667Z",
+  "totalRentals": 25,
+  "duplicatesFound": 7,
+  "highConfidence": 3,
+  "mediumConfidence": 4,
+  "duplicateGroups": [
+    {
+      "masterId": "fb9169e1-1a9f-43bf-b126-b26f3ac2ac4c",
+      "masterTitle": "3 חדרים בבמצב טוב, לא שופץ - 1016956 ₪",
+      "masterPrice": 1016956,
+      "duplicates": [
+        {
+          "id": "f3fb2ea5-ba09-4834-9d2c-835fe1f603b0",
+          "title": "? חדרים בבמצב טוב, לא שופץ - 1000079 ₪",
+          "price": 1000079,
+          "score": 78,
+          "scoreBreakdown": {
+            "locationScore": 35,
+            "titleScore": 10,
+            "descriptionScore": 13,
+            "priceScore": 10,
+            "imageScore": 10,
+            "phoneScore": 0
+          }
+        }
+      ]
+    },
+    {
+      "masterId": "f584817e-74b3-400e-a67c-401c4bebab4b",
+      "masterTitle": "? חדרים בבמצב טוב, לא שופץ - 8500 ₪",
+      "masterPrice": 8500,
+      "duplicates": [
+        {
+          "id": "4b7342ce-2b51-4220-bbc5-81f50305c250",
+          "title": "? חדרים בבמצב טוב, לא שופץ - 14000 ₪",
+          "price": 14000,
+          "score": 80,
+          "scoreBreakdown": {
+            "locationScore": 35,
+            "titleScore": 10,
+            "descriptionScore": 15,
+            "priceScore": 0,
+            "imageScore": 20,
+            "phoneScore": 0
+          }
+        }
+      ]
+    },
+    {
+      "masterId": "20cd6a73-470e-4751-aed3-88ab2883db97",
+      "masterTitle": "3 חדרים בדירה, מרכז דרום - 7000 ₪",
+      "masterPrice": 7000,
+      "duplicates": [
+        {
+          "id": "5295be5b-b2a9-437c-b74e-49d3ab13eb08",
+          "title": "3 חדרים בדירה, מרכז דרום - 7000 ₪",
+          "price": 7000,
+          "score": 89,
+          "scoreBreakdown": {
+            "locationScore": 35,
+            "titleScore": 20,
+            "descriptionScore": 14,
+            "priceScore": 10,
+            "imageScore": 10,
+            "phoneScore": 0
+          }
+        }
+      ]
+    },
+    {
+      "masterId": "5926c1ac-20d7-4c9b-8ba6-6f011ce96696",
+      "masterTitle": "4 חדרים בדירה, מרכז דרום - 8900 ₪",
+      "masterPrice": 8900,
+      "duplicates": [
+        {
+          "id": "41c23f3a-6649-4475-a0a5-1b1a00c0c448",
+          "title": "4 חדרים בדירה, מרכז דרום - 8900 ₪",
+          "price": 8900,
+          "score": 89,
+          "scoreBreakdown": {
+            "locationScore": 35,
+            "titleScore": 20,
+            "descriptionScore": 14,
+            "priceScore": 10,
+            "imageScore": 10,
+            "phoneScore": 0
+          }
+        }
+      ]
+    },
+    {
+      "masterId": "07b2012a-68a9-4f88-b46c-d16089242578",
+      "masterTitle": "5 חדרים ב פנטהאוז, נווה דוד רמז - 8300 ₪",
+      "masterPrice": 8300,
+      "duplicates": [
+        {
+          "id": "b245aad5-a893-4f6a-9881-9b10578d768c",
+          "title": "5 חדרים ב פנטהאוז, נווה דוד רמז - 8300 ₪",
+          "price": 8300,
+          "score": 76,
+          "scoreBreakdown": {
+            "locationScore": 35,
+            "titleScore": 20,
+            "descriptionScore": 11,
+            "priceScore": 10,
+            "imageScore": 0,
+            "phoneScore": 0
+          }
+        }
+      ]
+    },
+    {
+      "masterId": "99bdcf15-5fd1-48f1-a706-c3a1563c4351",
+      "masterTitle": "5 חדרים בדירה, רחובות המדע - 10500 ₪",
+      "masterPrice": 10500,
+      "duplicates": [
+        {
+          "id": "ca869cf5-4e2b-4069-a6d5-d41eb76f4e6e",
+          "title": "5 חדרים בדירה, רחובות המדע - 10500 ₪",
+          "price": 10500,
+          "score": 76,
+          "scoreBreakdown": {
+            "locationScore": 35,
+            "titleScore": 20,
+            "descriptionScore": 11,
+            "priceScore": 10,
+            "imageScore": 0,
+            "phoneScore": 0
+          }
+        }
+      ]
+    },
+    {
+      "masterId": "bfcee8c6-388c-4881-a899-e84436fe0e6a",
+      "masterTitle": "7 חדרים ב פנטהאוז, נווה דוד רמז - 8400 ₪",
+      "masterPrice": 8400,
+      "duplicates": [
+        {
+          "id": "ce693d11-00de-4434-a513-7d2b09e61ea1",
+          "title": "7 חדרים ב פנטהאוז, נווה דוד רמז - 8400 ₪",
+          "price": 8400,
+          "score": 89,
+          "scoreBreakdown": {
+            "locationScore": 35,
+            "titleScore": 20,
+            "descriptionScore": 14,
+            "priceScore": 10,
+            "imageScore": 10,
+            "phoneScore": 0
+          }
+        }
+      ]
+    }
+  ]
+}

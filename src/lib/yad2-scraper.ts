@@ -30,6 +30,7 @@ interface Yad2Listing {
   contact_name?: string;
   phone_number?: string;
   listing_url: string;
+  listing_type: 'rent' | 'sale';
   updated_at: string;
 }
 
@@ -250,6 +251,9 @@ export class Yad2Scraper {
         console.log(`Found ${uniqueImages.length} images for listing`);
       }
 
+      // Extract listing type from URL
+      const listingType = url.includes('/realestate/forsale') ? 'sale' : 'rent';
+
       // Create listing object
       const listing: Yad2Listing = {
         yad2_id: this.extractYad2Id(url, title.toString()),
@@ -265,6 +269,7 @@ export class Yad2Scraper {
         image_urls: uniqueImages,
         amenities,
         listing_url: url,
+        listing_type: listingType,
         updated_at: new Date().toISOString(),
       };
 
@@ -281,6 +286,9 @@ export class Yad2Scraper {
   async scrapeYad2(url: string, maxListings: number = 10): Promise<Yad2Listing[]> {
     try {
       console.log('Scraping Yad2 URL:', url);
+      
+      // Extract listing type from URL
+      const listingType = url.includes('/realestate/forsale') ? 'sale' : 'rent';
 
       // Use Firecrawl to scrape the search results page
       const response = await fetch(`${FIRECRAWL_API_URL}/scrape`, {
@@ -330,7 +338,7 @@ export class Yad2Scraper {
       const listingBlocks = this.extractListingBlocks(markdown, html);
 
       for (const block of listingBlocks.slice(0, maxListings)) {
-        const listing = this.parseListingBlock(block, url);
+        const listing = this.parseListingBlock(block, url, listingType);
         if (listing) {
           listings.push(listing);
         }
@@ -397,7 +405,7 @@ export class Yad2Scraper {
   /**
    * Parse a single listing block
    */
-  private parseListingBlock(block: string, baseUrl: string): Yad2Listing | null {
+  private parseListingBlock(block: string, baseUrl: string, listingType: 'rent' | 'sale'): Yad2Listing | null {
     try {
       // Extract price
       const { price, currency } = this.parsePrice(block);
@@ -452,6 +460,7 @@ export class Yad2Scraper {
         image_urls: blockImages,
         amenities,
         listing_url: baseUrl,
+        listing_type: listingType,
         updated_at: new Date().toISOString(),
       };
     } catch (error) {
@@ -541,6 +550,10 @@ export class Yad2Scraper {
             bedrooms: Math.floor(listing.rooms - 1),
             property_type: listing.property_type,
             is_active: true,
+            listing_type: listing.listing_type,
+            duplicate_status: duplicateResult.action === 'review' ? 'review' : 'unique',
+            source_platform: 'yad2',
+            source_id: listing.yad2_id,
           })
           .select()
           .single();
