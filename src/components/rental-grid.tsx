@@ -7,7 +7,11 @@ import type { RentalWithRelations } from '@/types/rental';
 // AI-DEV: Main grid component for displaying rental listings
 // <scratchpad>Uses custom hook with TanStack Query for data fetching</scratchpad>
 
-export function RentalGrid() {
+interface RentalGridProps {
+  listingType?: 'all' | 'rent' | 'sale';
+}
+
+export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
   const { data: rentals, isLoading, error } = useRentals();
 
   if (isLoading) {
@@ -36,16 +40,21 @@ export function RentalGrid() {
     );
   }
 
-  // Filter rentals (excluding duplicates) and sales
-  const activeRentals = (rentals as RentalWithRelations[]).filter(
-    rental => rental.duplicate_status !== 'duplicate' && rental.listing_type === 'rent'
-  );
+  // Filter rentals based on listing type and exclude duplicates
+  const activeRentals = (rentals as RentalWithRelations[]).filter(rental => {
+    // Always exclude duplicates
+    if (rental.duplicate_status === 'duplicate') return false;
+    
+    // Filter by listing type
+    if (listingType === 'all') return true;
+    return rental.listing_type === listingType;
+  });
 
   return (
     <>
       <div className="mb-4 flex items-center justify-between">
         <p className="text-muted-foreground">
-          מציג {activeRentals.length} דירות להשכרה
+          מציג {activeRentals.length} {listingType === 'rent' ? 'דירות להשכרה' : listingType === 'sale' ? 'דירות למכירה' : 'נכסים'}
         </p>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

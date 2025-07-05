@@ -11,7 +11,6 @@ export default function HomePage() {
       <Yad2ScraperWrapper />
 
       <section>
-        <h2 className="mb-4 text-2xl font-semibold">דירות להשכרה</h2>
         <RentalGridWrapper />
       </section>
     </div>
