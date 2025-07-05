@@ -69,14 +69,34 @@ export class Yad2Scraper {
     // Remove commas and extract numbers
     const cleanText = priceText.replace(/,/g, '');
 
-    // Since we're scraping rentals, prioritize rental price patterns first
+    // Look for sale price patterns first (if we're scraping forsale)
+    const salePatterns = [
+      /₪\s*([\d,]+(?:\.\d+)?(?:,\d{3})*)/, // ₪ 1,500,000
+      /([\d,]+(?:\.\d+)?(?:,\d{3})*)\s*₪/, // 1,500,000 ₪
+      /מחיר[\s:]*₪?\s*([\d,]+)/, // מחיר: 1,500,000
+      /₪[\s]*([\d]+(?:,\d{3})*(?:\.\d+)?)/, // ₪1,500,000
+      /([\d]+(?:,\d{3})*(?:\.\d+)?)[\s]*₪/, // 1,500,000₪
+    ];
+
+    // Try sale patterns first
+    for (const pattern of salePatterns) {
+      const match = cleanText.match(pattern);
+      if (match) {
+        const priceStr = match[1].replace(/,/g, '');
+        const price = parseFloat(priceStr);
+        // For sales, expect prices over 100,000
+        if (price >= 100000) {
+          return { price, currency: 'ILS' };
+        }
+      }
+    }
+
+    // Then try rental patterns
     const rentalPatterns = [
       /לחודש[\s:]*₪?\s*([\d,]+)/, // לחודש: 5,000
       /שכירות[\s:]*₪?\s*([\d,]+)/, // שכירות: 5,000
       /₪\s*(\d{1,5})\s*לחודש/, // ₪ 5000 לחודש
       /(\d{1,5})\s*₪\s*לחודש/, // 5000 ₪ לחודש
-      /₪\s*(\d{1,5})(?:\s|$)/, // ₪ 5000 (standalone rental price)
-      /(\d{1,5})\s*₪(?:\s|$)/, // 5000 ₪ (standalone rental price)
     ];
 
     for (const pattern of rentalPatterns) {
@@ -84,17 +104,16 @@ export class Yad2Scraper {
       if (match) {
         const price = parseFloat(match[1].replace(/,/g, ''));
         if (price >= 1000 && price <= 50000) {
-          // Reasonable rental range
           return { price, currency: 'ILS' };
         }
       }
     }
 
-    // If no rental pattern found, look for any reasonable price
+    // If no specific pattern found, look for any number with ₪
     const generalPatterns = [
-      /₪\s*([\d,]+(?:\.\d+)?(?:,\d{3})*)/, // ₪ 1,500
-      /([\d,]+(?:\.\d+)?(?:,\d{3})*)\s*₪/, // 1,500 ₪
-      /(\d{1,5})/, // Any 1-5 digit number (likely rental)
+      /₪\s*([\d,]+)/, // ₪ followed by number
+      /([\d,]+)\s*₪/, // number followed by ₪
+      /(\d{4,})/, // Any 4+ digit number (likely a price)
     ];
 
     for (const pattern of generalPatterns) {
@@ -102,8 +121,8 @@ export class Yad2Scraper {
       if (match) {
         const priceStr = match[1].replace(/,/g, '');
         const price = parseFloat(priceStr);
-        // For rentals, cap at reasonable monthly rent
-        if (price >= 1000 && price <= 50000) {
+        // Accept any reasonable price
+        if (price >= 1000) {
           return { price, currency: 'ILS' };
         }
       }
@@ -430,15 +449,49 @@ export class Yad2Scraper {
         console.log(`Found ${matches.length} potential feed items in HTML`);
         // Convert HTML to text for each match
         const textBlocks = matches.map(htmlBlock => {
-          // Remove HTML tags but preserve text content
-          return htmlBlock
-            .replace(/<[^>]+>/g, ' ') // Replace tags with spaces
+          // Extract text content more carefully
+          let text = htmlBlock;
+          
+          // Extract prices first (they might be in specific elements)
+          const priceMatches = text.match(/₪[\s]*[\d,]+|[\d,]+[\s]*₪/g);
+          
+          // Remove script and style content
+          text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+          text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+          
+          // Extract text from specific elements that might contain data
+          const importantText: string[] = [];
+          
+          // Extract text from spans, divs, etc
+          const textPattern = />([^<]+)</g;
+          let textMatch;
+          while ((textMatch = textPattern.exec(text)) !== null) {
+            const content = textMatch[1].trim();
+            if (content && !content.match(/^[\s\n]*$/)) {
+              importantText.push(content);
+            }
+          }
+          
+          // Reconstruct with prices prominently placed
+          let reconstructed = importantText.join(' ');
+          if (priceMatches && priceMatches.length > 0) {
+            reconstructed = priceMatches[0] + ' ' + reconstructed;
+          }
+          
+          return reconstructed
             .replace(/\s+/g, ' ') // Normalize whitespace
+            .replace(/\\+/g, '') // Remove backslashes
+            .replace(/\*+/g, '') // Remove asterisks
+            .replace(/\[|\]/g, '') // Remove brackets
             .trim();
-        }).filter(text => text.length > 50); // Filter out empty blocks
+        }).filter(text => text.length > 50 && text.match(/₪|חדרים/)); // Must have price or rooms
         
         if (textBlocks.length > 0) {
           console.log(`Converted ${textBlocks.length} HTML blocks to text`);
+          // Log first few blocks for debugging
+          textBlocks.slice(0, 3).forEach((block, i) => {
+            console.log(`Sample block ${i + 1}: ${block.substring(0, 150)}...`);
+          });
           return textBlocks;
         }
       }
