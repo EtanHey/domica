@@ -8,13 +8,15 @@ export const openai = {
       create: async () => {
         // Placeholder - would use actual OpenAI API
         return {
-          choices: [{
-            message: {
-              content: "50" // Default similarity score
-            }
-          }]
+          choices: [
+            {
+              message: {
+                content: '50', // Default similarity score
+              },
+            },
+          ],
         };
-      }
-    }
-  }
+      },
+    },
+  },
 };

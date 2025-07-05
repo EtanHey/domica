@@ -61,7 +61,7 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
             : 'נכסים'}
       </p>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div dir="rtl" className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {activeRentals.map((rental) => (
           <RentalCard
             key={rental.id}
@@ -71,6 +71,12 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
               location_text: rental.location_text || '',
               bathrooms: rental.bathrooms ? parseFloat(rental.bathrooms) : undefined,
               currency: rental.currency || undefined,
+              bedrooms: rental.bedrooms ?? undefined,
+              rental_images:
+                rental.rental_images?.map((img) => ({
+                  ...img,
+                  is_primary: img.is_primary ?? undefined,
+                })) ?? undefined,
             }}
           />
         ))}

@@ -8,6 +8,7 @@
 2. **IF UPDATING LINEAR** → IMMEDIATELY UPDATE NOTION WITH THE SAME CHANGES
 
 ### SYNC REQUIREMENTS:
+
 - **Projects**: Must exist in BOTH Notion AND Linear with matching:
   - Name/Title
   - Status (Not started → Planned, In progress → Started, etc.)
@@ -18,6 +19,7 @@
 - **Updates**: Any status change, priority change, or content update must be reflected in BOTH
 
 ### CURRENT PROJECTS TO SYNC:
+
 - PoC of scraping (Status: In progress, Priority: High, Due: 2025-07-06)
 - Internal QA & documentation (Status: Not started)
 - Front-end (Status: Not started)
@@ -68,7 +70,22 @@ A Next.js application to visualize rental listings scraped from Yad2 (Israeli re
 - Run dev server: `npm run dev`
 - Build: `npm run build`
 - Type check: `npm run type-check`
-- Lint: `npm run lint`
+- Format check: `npm run format:check`
+- Format fix: `npm run format`
+
+## Pre-Push Checklist
+
+**ALWAYS run these commands before pushing changes:**
+
+1. **Type Check**: `npm run type-check` - Ensures TypeScript types are correct
+2. **Build**: `npm run build` - Verifies the project builds successfully
+3. **Format Check**: `npm run format:check` - Checks code formatting
+
+If any of these commands fail, fix the issues before pushing. This ensures:
+
+- No TypeScript errors in production
+- The app builds successfully
+- Code follows consistent formatting
 
 ## Supabase Integration Notes
 

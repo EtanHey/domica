@@ -82,11 +82,11 @@ export interface DuplicateReview {
   reviewed_at?: string;
 }
 
-export type MergeStrategy = 
-  | 'preserve_complete'    // Keep most complete information
-  | 'prefer_recent'       // Prefer most recent data
-  | 'accumulate'          // Accumulate all unique data
-  | 'manual';             // Require manual review
+export type MergeStrategy =
+  | 'preserve_complete' // Keep most complete information
+  | 'prefer_recent' // Prefer most recent data
+  | 'accumulate' // Accumulate all unique data
+  | 'manual'; // Require manual review
 
 export interface ImageComparisonResult {
   similarity: number;

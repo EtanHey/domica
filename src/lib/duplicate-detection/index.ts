@@ -23,7 +23,7 @@ export class DuplicateDetectionService {
       enableAIComparison: true,
       aiComparisonThreshold: 0.75,
       maxCandidateRadius: 200, // meters
-      ...config
+      ...config,
     };
   }
 
@@ -36,7 +36,7 @@ export class DuplicateDetectionService {
         confidence: 'high',
         matchedRental: exactMatch,
         score: 100,
-        action: 'update'
+        action: 'update',
       };
     }
 
@@ -47,13 +47,13 @@ export class DuplicateDetectionService {
         isDuplicate: false,
         confidence: 'high',
         score: 0,
-        action: 'create'
+        action: 'create',
       };
     }
 
     // Phase 3: Score each candidate
     const scores = await Promise.all(
-      candidates.map(candidate => this.calculateSimilarityScore(rental, candidate))
+      candidates.map((candidate) => this.calculateSimilarityScore(rental, candidate))
     );
 
     // Phase 4: Determine best match
@@ -66,7 +66,7 @@ export class DuplicateDetectionService {
         matchedRental: bestMatch.rental,
         score: bestMatch.totalScore,
         scoreBreakdown: bestMatch.breakdown,
-        action: 'merge'
+        action: 'merge',
       };
     }
 
@@ -80,7 +80,7 @@ export class DuplicateDetectionService {
         score: bestMatch.totalScore,
         scoreBreakdown: bestMatch.breakdown,
         action: 'review',
-        reviewId
+        reviewId,
       };
     }
 
@@ -88,17 +88,19 @@ export class DuplicateDetectionService {
       isDuplicate: false,
       confidence: 'high',
       score: bestMatch.totalScore,
-      action: 'create'
+      action: 'create',
     };
   }
 
   private async checkExactSourceMatch(rental: RentalInput): Promise<DatabaseRental | null> {
     const { data } = await this.supabase
       .from('rentals')
-      .select(`
+      .select(
+        `
         *,
         images:rental_images(id, image_url, phash)
-      `)
+      `
+      )
       .eq('source_platform', rental.sourcePlatform)
       .eq('source_id', rental.sourceId)
       .is('deleted_at', null)
@@ -107,7 +109,7 @@ export class DuplicateDetectionService {
     if (data) {
       return {
         ...data,
-        images: (data as any).images || []
+        images: (data as any).images || [],
       } as DatabaseRental;
     }
     return null;
@@ -116,43 +118,46 @@ export class DuplicateDetectionService {
   private async findNearbyCandidates(rental: RentalInput): Promise<DatabaseRental[]> {
     // For now, without PostGIS, we'll search by location text and title similarity
     // In production, you'd use the PostGIS function after running the migration
-    
+
     const { data } = await this.supabase
       .from('rentals')
-      .select(`
+      .select(
+        `
         *,
         images:rental_images(id, image_url, phash)
-      `)
+      `
+      )
       .is('deleted_at', null)
       .limit(100);
 
     if (!data) return [];
 
     // Filter by location text similarity or title similarity
-    return data.filter(r => {
-      if (rental.address && r.location_text) {
-        // Simple text matching for now
-        const rentalLocation = rental.address.toLowerCase();
-        const existingLocation = ((r.location_text as string) || '').toLowerCase();
-        
-        // Check if they share common location keywords
-        const rentalWords = rentalLocation.split(/[\s,]+/).filter((w: string) => w.length > 2);
-        const existingWords = existingLocation.split(/[\s,]+/).filter((w: string) => w.length > 2);
-        
-        const commonWords = rentalWords.filter(w => existingWords.includes(w));
-        return commonWords.length >= 2; // At least 2 common words
-      }
-      return false;
-    }).map(r => ({
-      ...r,
-      images: (r as any).images || []
-    })) as DatabaseRental[];
+    return data
+      .filter((r) => {
+        if (rental.address && r.location_text) {
+          // Simple text matching for now
+          const rentalLocation = rental.address.toLowerCase();
+          const existingLocation = ((r.location_text as string) || '').toLowerCase();
+
+          // Check if they share common location keywords
+          const rentalWords = rentalLocation.split(/[\s,]+/).filter((w: string) => w.length > 2);
+          const existingWords = existingLocation
+            .split(/[\s,]+/)
+            .filter((w: string) => w.length > 2);
+
+          const commonWords = rentalWords.filter((w) => existingWords.includes(w));
+          return commonWords.length >= 2; // At least 2 common words
+        }
+        return false;
+      })
+      .map((r) => ({
+        ...r,
+        images: (r as any).images || [],
+      })) as DatabaseRental[];
   }
 
-  private async calculateSimilarityScore(
-    newRental: RentalInput,
-    existingRental: DatabaseRental
-  ) {
+  private async calculateSimilarityScore(newRental: RentalInput, existingRental: DatabaseRental) {
     const breakdown = {
       locationScore: 0,
       titleScore: 0,
@@ -213,10 +218,7 @@ export class DuplicateDetectionService {
 
     // Image similarity (max 30 points)
     if (newRental.images?.length && existingRental.images?.length) {
-      breakdown.imageScore = await this.compareImages(
-        newRental.images,
-        existingRental.images
-      );
+      breakdown.imageScore = await this.compareImages(newRental.images, existingRental.images);
     }
 
     // Phone similarity (max 20 points)
@@ -232,7 +234,7 @@ export class DuplicateDetectionService {
     return {
       rental: existingRental,
       totalScore,
-      breakdown
+      breakdown,
     };
   }
 
@@ -245,10 +247,10 @@ export class DuplicateDetectionService {
     // First try perceptual hashing
     for (const newImage of newImages) {
       const newHash = await computeImageHashes(newImage);
-      
+
       for (const existingImage of existingImages) {
         let similarity = 0;
-        
+
         if (existingImage.phash) {
           similarity = compareHashes(newHash.phash, existingImage.phash);
         } else {
@@ -259,9 +261,12 @@ export class DuplicateDetectionService {
         // If hashes are very similar, it's likely the same image
         if (similarity > 0.95) return 30;
         if (similarity > 0.85) maxScore = Math.max(maxScore, 25);
-        
+
         // For medium similarity, use AI if enabled
-        if (similarity > (this.config.aiComparisonThreshold || 0.75) && this.config.enableAIComparison) {
+        if (
+          similarity > (this.config.aiComparisonThreshold || 0.75) &&
+          this.config.enableAIComparison
+        ) {
           const aiScore = await this.compareImagesWithAI(newImage, existingImage.image_url);
           maxScore = Math.max(maxScore, aiScore);
         }
@@ -301,14 +306,21 @@ export class DuplicateDetectionService {
     const mergedFields: string[] = [];
 
     // Title: Keep longer, more descriptive
-    if (duplicateRental.title && master.title && duplicateRental.title.length > (master.title as string).length) {
+    if (
+      duplicateRental.title &&
+      master.title &&
+      duplicateRental.title.length > (master.title as string).length
+    ) {
       updates.title = duplicateRental.title;
       mergedFields.push('title');
     }
 
     // Description: Keep longer or more complete
-    if (duplicateRental.description && 
-        (!master.description || duplicateRental.description.length > ((master.description as string) || '').length)) {
+    if (
+      duplicateRental.description &&
+      (!master.description ||
+        duplicateRental.description.length > ((master.description as string) || '').length)
+    ) {
       updates.description = duplicateRental.description;
       mergedFields.push('description');
     }
@@ -336,10 +348,7 @@ export class DuplicateDetectionService {
     updates.last_seen_at = new Date().toISOString();
 
     // Perform the update
-    await this.supabase
-      .from('rentals')
-      .update(updates)
-      .eq('id', masterId);
+    await this.supabase.from('rentals').update(updates).eq('id', masterId);
 
     // Merge images (deduplicated)
     if (duplicateRental.images?.length) {
@@ -347,14 +356,15 @@ export class DuplicateDetectionService {
     }
 
     // Record merge history
-    await this.supabase
-      .from('rental_merge_history')
-      .insert({
-        master_rental_id: masterId,
-        merged_fields: mergedFields,
-        merge_reason: 'duplicate_detected',
-        previous_values: this.extractPreviousValues(master as unknown as DatabaseRental, mergedFields)
-      });
+    await this.supabase.from('rental_merge_history').insert({
+      master_rental_id: masterId,
+      merged_fields: mergedFields,
+      merge_reason: 'duplicate_detected',
+      previous_values: this.extractPreviousValues(
+        master as unknown as DatabaseRental,
+        mergedFields
+      ),
+    });
   }
 
   private calculateDistance(
@@ -363,23 +373,20 @@ export class DuplicateDetectionService {
   ): number {
     // Haversine formula for distance in meters
     const R = 6371e3; // Earth's radius in meters
-    const φ1 = loc1.lat * Math.PI / 180;
-    const φ2 = loc2.lat * Math.PI / 180;
-    const Δφ = (loc2.lat - loc1.lat) * Math.PI / 180;
-    const Δλ = (loc2.lng - loc1.lng) * Math.PI / 180;
+    const φ1 = (loc1.lat * Math.PI) / 180;
+    const φ2 = (loc2.lat * Math.PI) / 180;
+    const Δφ = ((loc2.lat - loc1.lat) * Math.PI) / 180;
+    const Δλ = ((loc2.lng - loc1.lng) * Math.PI) / 180;
 
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c;
   }
 
-  private async queueForReview(
-    rental: RentalInput,
-    bestMatch: any
-  ): Promise<string> {
+  private async queueForReview(rental: RentalInput, bestMatch: any): Promise<string> {
     const { data } = await this.supabase
       .from('duplicate_reviews')
       .insert({
@@ -387,7 +394,7 @@ export class DuplicateDetectionService {
         matched_rental_id: bestMatch.rental.id,
         score: bestMatch.totalScore,
         score_breakdown: bestMatch.breakdown,
-        status: 'pending'
+        status: 'pending',
       })
       .select('id')
       .single();
@@ -404,11 +411,11 @@ export class DuplicateDetectionService {
 
     // Filter out duplicate images
     const uniqueNewImages = [];
-    let imageOrder = (existingImages?.length || 0);
-    
+    let imageOrder = existingImages?.length || 0;
+
     for (const newImage of newImages) {
       const newHash = await computeImageHashes(newImage);
-      const isDuplicate = existingImages?.some(existing => {
+      const isDuplicate = existingImages?.some((existing) => {
         if (!existing.phash) return false;
         return compareHashes(newHash.phash, (existing.phash as string) || '') > 0.95;
       });
@@ -421,23 +428,18 @@ export class DuplicateDetectionService {
           dhash: newHash.dhash,
           average_hash: newHash.averageHash,
           image_order: imageOrder++,
-          is_primary: false
+          is_primary: false,
         });
       }
     }
 
     // Insert unique images
     if (uniqueNewImages.length > 0) {
-      await this.supabase
-        .from('rental_images')
-        .insert(uniqueNewImages);
+      await this.supabase.from('rental_images').insert(uniqueNewImages);
     }
   }
 
-  private extractPreviousValues(
-    rental: DatabaseRental,
-    fields: string[]
-  ): Record<string, any> {
+  private extractPreviousValues(rental: DatabaseRental, fields: string[]): Record<string, any> {
     const values: Record<string, any> = {};
     for (const field of fields) {
       values[field] = rental[field as keyof DatabaseRental];

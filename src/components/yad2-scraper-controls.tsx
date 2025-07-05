@@ -5,7 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { Link, Loader2, AlertCircle } from 'lucide-react';
 import { useScrapeYad2 } from '@/hooks/use-scraping';
@@ -64,7 +69,7 @@ export function Yad2ScraperControls() {
           <AccordionTrigger className="px-6 py-4 hover:no-underline">
             <div className="flex flex-col items-start text-left">
               <h3 className="text-lg font-semibold">יבוא מודעות מיד 2</h3>
-              <p className="text-sm text-muted-foreground">יבוא אוטומטי של מודעות דירה מיד 2</p>
+              <p className="text-muted-foreground text-sm">יבוא אוטומטי של מודעות דירה מיד 2</p>
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-6 pb-4">
@@ -72,32 +77,36 @@ export function Yad2ScraperControls() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">דוגמאות לכתובות URL:</span>
-                  <span className="text-xs text-muted-foreground">לחץ להעתקה</span>
+                  <span className="text-muted-foreground text-xs">לחץ להעתקה</span>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <div 
-                    className="group rounded-lg border bg-muted/50 p-3 transition-all hover:bg-muted/70 hover:border-green-500/50 cursor-pointer"
-                    onClick={() => setYad2Url('https://www.yad2.co.il/realestate/rent?city=5000&minRooms=3')}
+                  <div
+                    className="group bg-muted/50 hover:bg-muted/70 cursor-pointer rounded-lg border p-3 transition-all hover:border-green-500/50"
+                    onClick={() =>
+                      setYad2Url('https://www.yad2.co.il/realestate/rent?city=5000&minRooms=3')
+                    }
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
                       <span className="text-xs font-medium">להשכרה</span>
                     </div>
-                    <code className="text-xs text-muted-foreground block break-all font-mono">
+                    <code className="text-muted-foreground block font-mono text-xs break-all">
                       https://www.yad2.co.il/realestate/rent?city=5000&minRooms=3
                     </code>
                   </div>
-                  
-                  <div 
-                    className="group rounded-lg border bg-muted/50 p-3 transition-all hover:bg-muted/70 hover:border-blue-500/50 cursor-pointer"
-                    onClick={() => setYad2Url('https://www.yad2.co.il/realestate/forsale?city=1200&minRooms=3')}
+
+                  <div
+                    className="group bg-muted/50 hover:bg-muted/70 cursor-pointer rounded-lg border p-3 transition-all hover:border-blue-500/50"
+                    onClick={() =>
+                      setYad2Url('https://www.yad2.co.il/realestate/forsale?city=1200&minRooms=3')
+                    }
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>
                       <span className="text-xs font-medium">למכירה</span>
                     </div>
-                    <code className="text-xs text-muted-foreground block break-all font-mono">
+                    <code className="text-muted-foreground block font-mono text-xs break-all">
                       https://www.yad2.co.il/realestate/forsale?city=1200&minRooms=3
                     </code>
                   </div>

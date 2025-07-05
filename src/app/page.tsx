@@ -3,7 +3,7 @@ import { Yad2ScraperWrapper } from '@/components/yad2-scraper-wrapper';
 
 export default function HomePage() {
   return (
-    <div className="container mx-auto space-y-8 px-4 py-8">
+    <div className="container  mx-auto space-y-8 px-4 py-8">
       <div className="mb-8 text-center">
         <p className="text-muted-foreground text-lg">מצא את הדירה המושלמת שלך</p>
       </div>

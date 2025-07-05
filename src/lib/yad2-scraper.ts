@@ -286,7 +286,7 @@ export class Yad2Scraper {
   async scrapeYad2(url: string, maxListings: number = 10): Promise<Yad2Listing[]> {
     try {
       console.log('Scraping Yad2 URL:', url);
-      
+
       // Extract listing type from URL
       const listingType = url.includes('/realestate/forsale') ? 'sale' : 'rent';
 
@@ -408,12 +408,16 @@ export class Yad2Scraper {
 
       for (const line of lines) {
         currentBlock += line + '\n';
-        
+
         if (pricePattern.test(line)) hasPrice = true;
         if (line.includes('חדרים')) hasRooms = true;
 
         // If we find a separator and have essential info, consider it end of block
-        if ((line.includes('---') || line.trim() === '' || pricePattern.test(line)) && hasPrice && hasRooms) {
+        if (
+          (line.includes('---') || line.trim() === '' || pricePattern.test(line)) &&
+          hasPrice &&
+          hasRooms
+        ) {
           if (currentBlock.length > 100) {
             blocks.push(currentBlock);
             currentBlock = '';
@@ -430,7 +434,11 @@ export class Yad2Scraper {
   /**
    * Parse a single listing block
    */
-  private parseListingBlock(block: string, baseUrl: string, listingType: 'rent' | 'sale'): Yad2Listing | null {
+  private parseListingBlock(
+    block: string,
+    baseUrl: string,
+    listingType: 'rent' | 'sale'
+  ): Yad2Listing | null {
     try {
       // Extract price
       const { price, currency } = this.parsePrice(block);
@@ -507,7 +515,9 @@ export class Yad2Scraper {
         price: listing.price,
         currency: listing.currency,
         address: listing.location,
-        city: listing.location.includes(',') ? listing.location.split(',')[1].trim() : listing.location,
+        city: listing.location.includes(',')
+          ? listing.location.split(',')[1].trim()
+          : listing.location,
         phone: listing.phone_number,
         contactName: listing.contact_name,
         images: listing.image_urls,
@@ -519,19 +529,16 @@ export class Yad2Scraper {
           rooms: listing.rooms,
           floor: listing.floor,
           size_sqm: listing.size_sqm,
-          property_type: listing.property_type
-        }
+          property_type: listing.property_type,
+        },
       };
 
       // Check for duplicates
       const duplicateResult = await duplicateDetector.checkForDuplicate(rentalInput);
-      
+
       if (duplicateResult.isDuplicate && duplicateResult.action === 'merge') {
         console.log(`Duplicate found for "${listing.title}", merging with existing listing...`);
-        await duplicateDetector.mergeRentals(
-          duplicateResult.matchedRental!.id,
-          rentalInput
-        );
+        await duplicateDetector.mergeRentals(duplicateResult.matchedRental!.id, rentalInput);
         return 'duplicate';
       }
 
@@ -548,7 +555,7 @@ export class Yad2Scraper {
             location_text: listing.location,
             bedrooms: Math.floor(listing.rooms - 1),
             property_type: listing.property_type,
-            last_seen_at: new Date().toISOString()
+            last_seen_at: new Date().toISOString(),
           })
           .eq('facebook_id', listing.yad2_id);
 
@@ -557,7 +564,9 @@ export class Yad2Scraper {
       }
 
       if (duplicateResult.action === 'review') {
-        console.log(`Potential duplicate for "${listing.title}" queued for review (score: ${duplicateResult.score})`);
+        console.log(
+          `Potential duplicate for "${listing.title}" queued for review (score: ${duplicateResult.score})`
+        );
       }
 
       // Only create new listing if not a duplicate
@@ -681,9 +690,9 @@ export class Yad2Scraper {
             console.warn(`Price too large for listing ${listing.title}: ${listing.price}`);
             listing.price = 0; // Set to 0 to indicate price needs review
           }
-          
+
           const result = await this.saveListing(listing);
-          
+
           switch (result) {
             case 'created':
               createdCount++;

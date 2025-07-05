@@ -1,7 +1,8 @@
+'use client';
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { QueryKeys, MutationKeys } from '@/lib/query-keys';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface ScrapeYad2Params {
   url: string;
@@ -16,17 +17,13 @@ interface ScrapeYad2Response {
   message: string;
 }
 
-// Hook for Yad2 scraping
 export function useScrapeYad2() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation({
+  return useMutation<ScrapeYad2Response, Error, ScrapeYad2Params>({
     mutationKey: MutationKeys.scrapeYad2,
-    mutationFn: async ({
-      url,
-      maxListings = 10,
-    }: ScrapeYad2Params): Promise<ScrapeYad2Response> => {
+    mutationFn: async ({ url, maxListings = 10 }) => {
       const response = await fetch('/api/scrape-yad2', {
         method: 'POST',
         headers: {
@@ -47,40 +44,26 @@ export function useScrapeYad2() {
       return data;
     },
     onSuccess: (data) => {
-      // Build detailed message
-      const details = [];
+      const details: string[] = [];
       if (data.created > 0) details.push(`${data.created} נוספו`);
       if (data.updated > 0) details.push(`${data.updated} עודכנו`);
       if (data.duplicates > 0) details.push(`${data.duplicates} כפילויות נמצאו`);
-      
-      const description = details.length > 0 
-        ? details.join(', ')
-        : 'לא נמצאו דירות חדשות';
+
+      const description = details.length > 0 ? details.join(', ') : 'לא נמצאו דירות חדשות';
 
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            <span>סיום סריקה</span>
-          </div>
-        ) as any,
+        title: '✅ סיום סריקה',
         description,
         className: '!bg-white dark:!bg-gray-950 !border-2 !border-gray-200 dark:!border-gray-800',
       });
 
-      // Invalidate rentals query to show new listings
       if (data.listings > 0) {
-        queryClient.invalidateQueries({ queryKey: QueryKeys.rentals.all });
+        void queryClient.invalidateQueries({ queryKey: QueryKeys.rentals.all });
       }
     },
     onError: (error) => {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <span>שגיאה</span>
-          </div>
-        ) as any,
+        title: '❌ שגיאה',
         description: error instanceof Error ? error.message : 'שגיאה בייבוא',
         className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
       });
@@ -88,30 +71,29 @@ export function useScrapeYad2() {
   });
 }
 
-// Hook for Facebook scraping (future implementation)
 export function useScrapeFacebook() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation({
+  return useMutation<void, Error, void>({
     mutationKey: MutationKeys.scrapeFacebook,
     mutationFn: async () => {
-      // TODO: Implement Facebook scraping
       throw new Error('Facebook scraping not yet implemented');
     },
     onSuccess: () => {
       toast({
-        title: 'Success',
-        description: 'Facebook posts imported successfully',
+        title: '✅ הצלחה',
+        description: 'פוסטים מפייסבוק יובאו בהצלחה',
+        className: '!bg-white dark:!bg-gray-950 !border-2 !border-gray-200 dark:!border-gray-800',
       });
 
-      queryClient.invalidateQueries({ queryKey: QueryKeys.rentals.all });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.rentals.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to scrape Facebook',
-        variant: 'destructive',
+        title: '❌ שגיאה',
+        description: error instanceof Error ? error.message : 'נכשל ייבוא מפייסבוק',
+        className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
       });
     },
   });
