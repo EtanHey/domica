@@ -19,6 +19,7 @@ bun dev
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 ## Tech Stack
+
 - **Frontend**: Next.js (latest) with TypeScript
 - **Styling**: Tailwind CSS (latest)
 - **UI Components**: shadcn/ui
@@ -46,6 +47,7 @@ The project includes Python analysis scripts:
 4. `run_all_analysis.py` - Main runner script
 
 To run analysis:
+
 ```bash
 python run_all_analysis.py
 ```

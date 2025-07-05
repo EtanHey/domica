@@ -48,7 +48,10 @@
       "WebFetch(domain:developer.nylas.com)",
       "Bash(npx shadcn@latest init:*)",
       "Bash(git rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "mcp__domica-notion__API-post-search",
+      "mcp__domica-notion__API-patch-block-children",
+      "mcp__domica-notion__API-delete-a-block"
     ],
     "deny": []
   },

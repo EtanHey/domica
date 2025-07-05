@@ -1,22 +1,18 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { QueryProvider } from "@/providers/query-provider";
-import { Toaster } from "@/components/ui/toaster";
+import type { Metadata } from 'next';
+import { Rubik } from 'next/font/google';
+import './globals.css';
+import { QueryProvider } from '@/providers/query-provider';
+import { Toaster } from '@/components/ui/toaster';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+// Use Rubik font which supports Hebrew
+const rubik = Rubik({
+  variable: '--font-rubik',
+  subsets: ['latin', 'hebrew'],
 });
 
 export const metadata: Metadata = {
-  title: "Domica - Rental Visualization",
-  description: "Visualize rental listings from Facebook Marketplace",
+  title: 'Domica - דומיקה',
+  description: 'Real estate platform for finding your perfect rental',
 };
 
 export default function RootLayout({
@@ -25,12 +21,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="he" dir="rtl">
+      <body className={`${rubik.variable} font-sans antialiased`}>
         <QueryProvider>
-          {children}
+          <div className="min-h-screen">
+            <header className="border-b">
+              <div className="container mx-auto flex items-center justify-between px-4 py-4">
+                <h1 className="text-2xl font-bold">דומיקה - Domica</h1>
+              </div>
+            </header>
+            <main>{children}</main>
+          </div>
           <Toaster />
         </QueryProvider>
       </body>

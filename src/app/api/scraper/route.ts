@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-import path from "path";
+import { NextRequest, NextResponse } from 'next/server';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
 
 const execAsync = promisify(exec);
 
@@ -12,21 +12,21 @@ export async function POST(request: NextRequest) {
     const { action, config } = body;
 
     // Validate action
-    const validActions = ["scrape", "upload-images", "analyze"];
+    const validActions = ['scrape', 'scrape-group', 'scrape-firecrawl', 'upload-images', 'analyze'];
     if (!validActions.includes(action)) {
       return NextResponse.json(
-        { error: "Invalid action. Must be one of: " + validActions.join(", ") },
+        { error: 'Invalid action. Must be one of: ' + validActions.join(', ') },
         { status: 400 }
       );
     }
 
     // Determine which Python script to run
     let pythonScript: string;
-    let args: string[] = [];
+    const args: string[] = [];
 
     switch (action) {
-      case "scrape":
-        pythonScript = "facebook_rental_scraper.py";
+      case 'scrape':
+        pythonScript = 'facebook_rental_scraper.py';
         if (config?.searchQuery) {
           args.push(`--query "${config.searchQuery}"`);
         }
@@ -35,32 +35,52 @@ export async function POST(request: NextRequest) {
         }
         break;
 
-      case "upload-images":
-        pythonScript = "uploadthing_integration.py";
+      case 'scrape-group':
+        pythonScript = 'facebook_group_scraper.py';
+        args.push('--json');
+        args.push('--headless');
+        if (config?.groupUrl) {
+          args.push(`--group "${config.groupUrl}"`);
+        }
+        if (config?.maxPosts) {
+          args.push(`--max-posts ${config.maxPosts}`);
+        }
+        break;
+
+      case 'scrape-firecrawl':
+        pythonScript = 'firecrawl_scraper.py';
+        args.push('--json');
+        if (config?.groupUrl) {
+          args.push(`--group "${config.groupUrl}"`);
+        }
+        if (config?.maxPosts) {
+          args.push(`--max-posts ${config.maxPosts}`);
+        }
+        break;
+
+      case 'upload-images':
+        pythonScript = 'uploadthing_integration.py';
         if (config?.rentalId) {
           args.push(`--rental-id "${config.rentalId}"`);
         }
         break;
 
-      case "analyze":
-        pythonScript = "rental_app_analysis.py";
+      case 'analyze':
+        pythonScript = 'rental_app_analysis.py';
         break;
 
       default:
-        return NextResponse.json(
-          { error: "Unknown action" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
 
     // Construct the command
-    const pythonPath = process.env.PYTHON_PATH || "python3";
-    const scriptsDir = path.join(process.cwd(), "python_scripts");
+    const pythonPath = process.env.PYTHON_PATH || 'python3';
+    const scriptsDir = path.join(process.cwd(), 'python_scripts');
     const scriptPath = path.join(scriptsDir, pythonScript);
-    
-    const command = `${pythonPath} "${scriptPath}" ${args.join(" ")}`;
 
-    console.log("Executing command:", command);
+    const command = `${pythonPath} "${scriptPath}" ${args.join(' ')}`;
+
+    console.log('Executing command:', command);
 
     // Execute the Python script
     const { stdout, stderr } = await execAsync(command, {
@@ -76,10 +96,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Check if stderr contains actual errors or just logging
-    if (stderr && !stderr.includes("WARNING") && !stderr.includes("INFO")) {
-      console.error("Python script error:", stderr);
+    if (stderr && !stderr.includes('WARNING') && !stderr.includes('INFO')) {
+      console.error('Python script error:', stderr);
       return NextResponse.json(
-        { error: "Script execution failed", details: stderr },
+        { error: 'Script execution failed', details: stderr },
         { status: 500 }
       );
     }
@@ -99,13 +119,12 @@ export async function POST(request: NextRequest) {
       action,
       result,
     });
-
   } catch (error) {
-    console.error("API error:", error);
+    console.error('API error:', error);
     return NextResponse.json(
-      { 
-        error: "Internal server error", 
-        details: error instanceof Error ? error.message : "Unknown error" 
+      {
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );
@@ -115,18 +134,18 @@ export async function POST(request: NextRequest) {
 // GET endpoint to check if scraper is available
 export async function GET() {
   try {
-    const pythonPath = process.env.PYTHON_PATH || "python3";
+    const pythonPath = process.env.PYTHON_PATH || 'python3';
     const { stdout } = await execAsync(`${pythonPath} --version`);
-    
+
     return NextResponse.json({
       available: true,
       pythonVersion: stdout.trim(),
-      actions: ["scrape", "upload-images", "analyze"],
+      actions: ['scrape', 'upload-images', 'analyze'],
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({
       available: false,
-      error: "Python not available",
+      error: 'Python not available',
     });
   }
 }
