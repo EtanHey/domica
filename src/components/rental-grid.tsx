@@ -7,15 +7,7 @@ import type { RentalWithRelations } from '@/types/rental';
 // AI-DEV: Main grid component for displaying rental listings
 // <scratchpad>Uses custom hook with TanStack Query for data fetching</scratchpad>
 
-interface RentalGridProps {
-  messages: {
-    loading: string;
-    noData: string;
-    networkError: string;
-  };
-}
-
-export function RentalGrid({ messages }: RentalGridProps) {
+export function RentalGrid() {
   const { data: rentals, isLoading, error } = useRentals();
 
   if (isLoading) {
@@ -31,7 +23,7 @@ export function RentalGrid({ messages }: RentalGridProps) {
   if (error) {
     return (
       <div className="py-12 text-center">
-        <p className="text-destructive text-lg">{messages.networkError}</p>
+        <p className="text-destructive text-lg">שגיאת רשת</p>
       </div>
     );
   }
@@ -39,7 +31,7 @@ export function RentalGrid({ messages }: RentalGridProps) {
   if (!rentals || rentals.length === 0) {
     return (
       <div className="py-12 text-center">
-        <p className="text-muted-foreground text-lg">{messages.noData}</p>
+        <p className="text-muted-foreground text-lg">אין נתונים להצגה</p>
       </div>
     );
   }
