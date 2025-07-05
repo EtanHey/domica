@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { DuplicateDetectionService } from './duplicate-detection';
+import { RentalInput } from './duplicate-detection/types';
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY || '';
 const FIRECRAWL_API_URL = 'https://api.firecrawl.dev/v1';
@@ -8,6 +10,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// Initialize duplicate detection service
+const duplicateDetector = new DuplicateDetectionService(supabase as any);
 
 interface Yad2Listing {
   yad2_id: string;
@@ -420,8 +425,8 @@ export class Yad2Scraper {
         }
       }
 
-      // Generate a title from the content
-      const title = `${rooms || '?'} חדרים ב${location} - ${price} ₪`;
+      // Generate a title from the content WITHOUT price
+      const title = `${rooms || '?'} חדרים ב${location}`;
 
       // Try to extract images from the block
       const blockImages: string[] = [];
@@ -456,21 +461,49 @@ export class Yad2Scraper {
   }
 
   /**
-   * Save listing to Supabase
+   * Save listing to Supabase with duplicate detection
    */
   async saveListing(listing: Yad2Listing): Promise<void> {
     try {
-      // Check if listing already exists
-      const { data: existing } = await supabase
-        .from('rentals')
-        .select('id')
-        .eq('facebook_id', listing.yad2_id)
-        .single();
+      // Extract location coordinates if possible (for now, using a placeholder)
+      // In production, you'd use a geocoding service
+      const rentalInput: RentalInput = {
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        currency: listing.currency,
+        address: listing.location,
+        city: listing.location.includes(',') ? listing.location.split(',')[1].trim() : listing.location,
+        phone: listing.phone_number,
+        contactName: listing.contact_name,
+        images: listing.image_urls,
+        amenities: listing.amenities,
+        sourcePlatform: 'yad2',
+        sourceId: listing.yad2_id,
+        sourceUrl: listing.listing_url,
+        metadata: {
+          rooms: listing.rooms,
+          floor: listing.floor,
+          size_sqm: listing.size_sqm,
+          property_type: listing.property_type
+        }
+      };
 
-      if (existing) {
-        console.log(`Listing ${listing.yad2_id} already exists, updating...`);
+      // Check for duplicates
+      const duplicateResult = await duplicateDetector.checkForDuplicate(rentalInput);
+      
+      if (duplicateResult.isDuplicate && duplicateResult.action === 'merge') {
+        console.log(`Duplicate found for "${listing.title}", merging with existing listing...`);
+        await duplicateDetector.mergeRentals(
+          duplicateResult.matchedRental!.id,
+          rentalInput
+        );
+        return;
+      }
 
-        // Update existing listing
+      if (duplicateResult.action === 'update') {
+        console.log(`Exact match found for "${listing.title}", updating...`);
+        // Update existing listing with same source
         const { error: updateError } = await supabase
           .from('rentals')
           .update({
@@ -479,13 +512,22 @@ export class Yad2Scraper {
             price_per_month: listing.price,
             currency: listing.currency,
             location_text: listing.location,
-            bedrooms: Math.floor(listing.rooms - 1), // Israeli convention: rooms include living room
+            bedrooms: Math.floor(listing.rooms - 1),
             property_type: listing.property_type,
+            last_seen_at: new Date().toISOString()
           })
           .eq('facebook_id', listing.yad2_id);
 
         if (updateError) throw updateError;
-      } else {
+        return;
+      }
+
+      if (duplicateResult.action === 'review') {
+        console.log(`Potential duplicate for "${listing.title}" queued for review (score: ${duplicateResult.score})`);
+      }
+
+      // Only create new listing if not a duplicate
+      if (duplicateResult.action === 'create' || duplicateResult.action === 'review') {
         // Insert new listing
         const { data: rental, error: insertError } = await supabase
           .from('rentals')
