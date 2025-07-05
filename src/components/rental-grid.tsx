@@ -126,10 +126,12 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
                         href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          setPage(pageNum);
+                          if (pageNum !== page) {
+                            setPage(pageNum);
+                          }
                         }}
                         isActive={pageNum === page}
-                        className="cursor-pointer"
+                        className={pageNum === page ? 'pointer-events-none' : 'cursor-pointer'}
                       >
                         {pageNum}
                       </PaginationLink>
