@@ -344,12 +344,50 @@ export class Yad2Scraper {
         }
       }
 
-      // If no individual listings found, don't try to parse the search page as a listing
+      // If no individual listings found, try alternative parsing
       if (listings.length === 0) {
-        console.log('No individual listings found on this page');
-        // Don't parse search pages as listings
-        if (markdown.includes('נדל"ן') && markdown.includes('מודעות')) {
-          console.log('This appears to be a search results page, not a listing');
+        console.log('No individual listings found with standard parsing, trying alternative method...');
+        
+        // Try parsing the entire markdown content as potential listings
+        const lines = markdown.split('\n');
+        let currentListing: any = {};
+        let hasBasicInfo = false;
+        
+        for (const line of lines) {
+          // Look for price patterns
+          if (line.match(/₪[\s\d,]+|[\d,]+\s*₪/)) {
+            if (hasBasicInfo && currentListing.price) {
+              // We might have a complete listing, try to parse it
+              const listingText = Object.values(currentListing).join(' ');
+              const listing = this.parseListingBlock(listingText, url, listingType);
+              if (listing) {
+                listings.push(listing);
+              }
+            }
+            currentListing = { price: line };
+            hasBasicInfo = false;
+          }
+          
+          // Look for rooms
+          if (line.includes('חדרים')) {
+            currentListing.rooms = line;
+            hasBasicInfo = true;
+          }
+          
+          // Look for location patterns
+          if (line.match(/^[א-ת\s,]+$/) && line.length > 5 && line.length < 50) {
+            currentListing.location = line;
+          }
+          
+          // Accumulate description
+          if (currentListing.price) {
+            currentListing.description = (currentListing.description || '') + ' ' + line;
+          }
+        }
+        
+        // Don't return empty array if it looks like a search page
+        if (listings.length === 0 && markdown.includes('נדל"ן') && markdown.includes('מודעות')) {
+          console.log('This appears to be a search results page, not individual listings');
           return [];
         }
       }
@@ -376,12 +414,33 @@ export class Yad2Scraper {
 
     // Try to find feed items in HTML first (more reliable)
     if (html) {
-      // Look for Yad2 feed item patterns
-      const feedItemPattern = /<div[^>]*class="[^"]*feeditem[^"]*"[^>]*>[\s\S]*?<\/div>/gi;
-      const matches = html.match(feedItemPattern);
+      // Look for Yad2 feed item patterns - use a more specific pattern
+      // Match feed items that contain data attributes
+      const feedItemPattern = /<div[^>]*data-feed-item[^>]*>[\s\S]*?(?=<div[^>]*data-feed-item|$)/gi;
+      let matches = html.match(feedItemPattern);
+      
+      // If no data-feed-item, try class-based pattern with better boundary detection
+      if (!matches || matches.length === 0) {
+        // Look for feed items with specific Yad2 classes
+        const classPattern = /<div[^>]*class="[^"]*feed[^"]*item[^"]*"[^>]*>(?:[^<]|<(?!\/div>))*(?:<div[^>]*>(?:[^<]|<(?!\/div>))*<\/div>)*[^<]*<\/div>/gi;
+        matches = html.match(classPattern);
+      }
+      
       if (matches && matches.length > 0) {
-        console.log(`Found ${matches.length} feed items in HTML`);
-        return matches;
+        console.log(`Found ${matches.length} potential feed items in HTML`);
+        // Convert HTML to text for each match
+        const textBlocks = matches.map(htmlBlock => {
+          // Remove HTML tags but preserve text content
+          return htmlBlock
+            .replace(/<[^>]+>/g, ' ') // Replace tags with spaces
+            .replace(/\s+/g, ' ') // Normalize whitespace
+            .trim();
+        }).filter(text => text.length > 50); // Filter out empty blocks
+        
+        if (textBlocks.length > 0) {
+          console.log(`Converted ${textBlocks.length} HTML blocks to text`);
+          return textBlocks;
+        }
       }
     }
 
@@ -442,7 +501,10 @@ export class Yad2Scraper {
     try {
       // Extract price
       const { price, currency } = this.parsePrice(block);
-      if (!price) return null; // No price means probably not a listing
+      if (!price) {
+        console.log('No price found in block:', block.substring(0, 100));
+        return null; // No price means probably not a listing
+      }
 
       // Extract rooms
       const rooms = this.extractRooms(block);
