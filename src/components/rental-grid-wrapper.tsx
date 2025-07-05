@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { RentalGrid } from './rental-grid';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Home, Key, Tag } from 'lucide-react';
 
 export function RentalGridWrapper() {
   const [activeTab, setActiveTab] = useState<'all' | 'rent' | 'sale'>('all');
@@ -18,7 +19,7 @@ export function RentalGridWrapper() {
             className="h-full text-base font-semibold transition-all border-2 border-transparent data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-xl data-[state=active]:text-foreground hover:bg-muted/50"
           >
             <span className="flex items-center gap-2">
-              <span className="text-xl">🏠</span>
+              <Home className="h-5 w-5" />
               כל הנכסים
             </span>
           </TabsTrigger>
@@ -27,7 +28,7 @@ export function RentalGridWrapper() {
             className="h-full text-base font-semibold transition-all border-2 border-transparent data-[state=active]:bg-green-500 data-[state=active]:border-green-600 data-[state=active]:text-white data-[state=active]:shadow-xl hover:bg-green-50 hover:border-green-200"
           >
             <span className="flex items-center gap-2">
-              <span className="text-xl">🔑</span>
+              <Key className="h-5 w-5" />
               להשכרה
             </span>
           </TabsTrigger>
@@ -36,7 +37,7 @@ export function RentalGridWrapper() {
             className="h-full text-base font-semibold transition-all border-2 border-transparent data-[state=active]:bg-blue-500 data-[state=active]:border-blue-600 data-[state=active]:text-white data-[state=active]:shadow-xl hover:bg-blue-50 hover:border-blue-200"
           >
             <span className="flex items-center gap-2">
-              <span className="text-xl">🏷️</span>
+              <Tag className="h-5 w-5" />
               למכירה
             </span>
           </TabsTrigger>

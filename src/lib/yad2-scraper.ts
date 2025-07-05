@@ -344,12 +344,13 @@ export class Yad2Scraper {
         }
       }
 
-      // If no individual listings found, try to parse as a single listing
+      // If no individual listings found, don't try to parse the search page as a listing
       if (listings.length === 0) {
-        console.log('No individual listings found, parsing as single listing...');
-        const listing = this.parseListing(content, url);
-        if (listing) {
-          listings.push(listing);
+        console.log('No individual listings found on this page');
+        // Don't parse search pages as listings
+        if (markdown.includes('נדל"ן') && markdown.includes('מודעות')) {
+          console.log('This appears to be a search results page, not a listing');
+          return [];
         }
       }
 
@@ -367,6 +368,23 @@ export class Yad2Scraper {
   private extractListingBlocks(markdown: string, html: string = ''): string[] {
     const blocks: string[] = [];
 
+    // Skip if this looks like a search results page without listings
+    if (markdown.includes('נדל"ן למכירה') && markdown.includes('אלפי מודעות')) {
+      console.log('This appears to be a search page header, not individual listings');
+      return [];
+    }
+
+    // Try to find feed items in HTML first (more reliable)
+    if (html) {
+      // Look for Yad2 feed item patterns
+      const feedItemPattern = /<div[^>]*class="[^"]*feeditem[^"]*"[^>]*>[\s\S]*?<\/div>/gi;
+      const matches = html.match(feedItemPattern);
+      if (matches && matches.length > 0) {
+        console.log(`Found ${matches.length} feed items in HTML`);
+        return matches;
+      }
+    }
+
     // Try to split by common patterns in Yad2 listings
     // Look for price patterns as delimiters
     const pricePattern = /₪[\s\d,]+|[\d,]+\s*₪/g;
@@ -375,8 +393,8 @@ export class Yad2Scraper {
     // Each part might be a listing
     for (let i = 0; i < parts.length - 1; i++) {
       const block = parts[i] + (markdown.match(pricePattern)?.[i] || '');
-      if (block.length > 50) {
-        // Minimum content for a listing
+      if (block.length > 50 && block.includes('חדרים')) {
+        // Must have rooms mentioned
         blocks.push(block);
       }
     }
@@ -385,15 +403,22 @@ export class Yad2Scraper {
     if (blocks.length === 0) {
       const lines = markdown.split('\n');
       let currentBlock = '';
+      let hasPrice = false;
+      let hasRooms = false;
 
       for (const line of lines) {
         currentBlock += line + '\n';
+        
+        if (pricePattern.test(line)) hasPrice = true;
+        if (line.includes('חדרים')) hasRooms = true;
 
-        // If we find a price or separator, consider it end of block
-        if (pricePattern.test(line) || line.includes('---') || line.trim() === '') {
+        // If we find a separator and have essential info, consider it end of block
+        if ((line.includes('---') || line.trim() === '' || pricePattern.test(line)) && hasPrice && hasRooms) {
           if (currentBlock.length > 100) {
             blocks.push(currentBlock);
             currentBlock = '';
+            hasPrice = false;
+            hasRooms = false;
           }
         }
       }

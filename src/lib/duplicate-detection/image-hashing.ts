@@ -9,8 +9,17 @@ interface ImageHashes {
 
 export async function computeImageHashes(imageUrl: string): Promise<ImageHashes> {
   try {
+    // Skip non-image URLs
+    if (!imageUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) && !imageUrl.includes('image')) {
+      return { phash: '', dhash: '', averageHash: '' };
+    }
+
     // Fetch image
     const response = await fetch(imageUrl);
+    if (!response.ok || !response.headers.get('content-type')?.startsWith('image/')) {
+      return { phash: '', dhash: '', averageHash: '' };
+    }
+    
     const buffer = await response.arrayBuffer();
     
     // Convert to grayscale and resize for hashing

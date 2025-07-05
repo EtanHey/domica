@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { QueryKeys, MutationKeys } from '@/lib/query-keys';
 import { useToast } from '@/hooks/use-toast';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface ScrapeYad2Params {
   url: string;
@@ -57,7 +58,12 @@ export function useScrapeYad2() {
         : 'לא נמצאו דירות חדשות';
 
       toast({
-        title: 'סיום סריקה',
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <span>סיום סריקה</span>
+          </div>
+        ) as any,
         description,
         className: '!bg-white dark:!bg-gray-950 !border-2 !border-gray-200 dark:!border-gray-800',
       });
@@ -69,10 +75,14 @@ export function useScrapeYad2() {
     },
     onError: (error) => {
       toast({
-        title: 'שגיאה',
+        title: (
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <span>שגיאה</span>
+          </div>
+        ) as any,
         description: error instanceof Error ? error.message : 'שגיאה בייבוא',
-        variant: 'destructive',
-        className: '!bg-red-600 !text-white !border-2 !border-red-700',
+        className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
       });
     },
   });

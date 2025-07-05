@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { Link, Loader2 } from 'lucide-react';
+import { Link, Loader2, AlertCircle } from 'lucide-react';
 import { useScrapeYad2 } from '@/hooks/use-scraping';
 
 export function Yad2ScraperControls() {
@@ -18,20 +18,28 @@ export function Yad2ScraperControls() {
   const handleScrape = async () => {
     if (!yad2Url) {
       toast({
-        title: 'שגיאה',
+        title: (
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <span>שגיאה</span>
+          </div>
+        ) as any,
         description: 'נא להזין כתובת URL',
-        variant: 'destructive',
-        className: '!bg-red-600 !text-white !border-2 !border-red-700',
+        className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
       });
       return;
     }
 
     if (!yad2Url.includes('yad2.co.il')) {
       toast({
-        title: 'שגיאה',
+        title: (
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <span>שגיאה</span>
+          </div>
+        ) as any,
         description: 'כתובת URL לא חוקית',
-        variant: 'destructive',
-        className: '!bg-red-600 !text-white !border-2 !border-red-700',
+        className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
       });
       return;
     }
