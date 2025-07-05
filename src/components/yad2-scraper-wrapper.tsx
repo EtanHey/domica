@@ -1,4 +1,5 @@
 import { Yad2ScraperControls } from './yad2-scraper-controls';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 export function Yad2ScraperWrapper() {
   const messages = {
@@ -14,5 +15,14 @@ export function Yad2ScraperWrapper() {
     invalidUrl: 'כתובת URL לא חוקית',
   };
 
-  return <Yad2ScraperControls messages={messages} />;
+  return (
+    <Accordion type="single" collapsible className="w-full">
+      <AccordionItem value="scraper">
+        <AccordionTrigger>כלי סריקה</AccordionTrigger>
+        <AccordionContent>
+          <Yad2ScraperControls messages={messages} />
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
 }
