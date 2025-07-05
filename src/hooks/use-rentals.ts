@@ -31,8 +31,7 @@ export function useRentals(filters?: RentalFilters) {
         `
         )
         .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .order('created_at', { ascending: false });
 
       // Apply filters if provided
       if (filters?.city) {
