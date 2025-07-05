@@ -12,31 +12,31 @@ export function RentalGridWrapper() {
       <h2 className="text-3xl font-bold text-center mb-6">נכסים זמינים</h2>
       
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'rent' | 'sale')} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8 max-w-2xl mx-auto h-14 p-1 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-3 mb-8 max-w-2xl mx-auto h-16 p-2 bg-background border-2 border-border rounded-lg shadow-md">
           <TabsTrigger 
             value="all" 
-            className="h-full text-base font-semibold transition-all data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:text-foreground"
+            className="h-full text-base font-semibold transition-all border-2 border-transparent data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-xl data-[state=active]:text-foreground hover:bg-muted/50"
           >
             <span className="flex items-center gap-2">
-              <span className="text-lg">🏠</span>
+              <span className="text-xl">🏠</span>
               כל הנכסים
             </span>
           </TabsTrigger>
           <TabsTrigger 
             value="rent" 
-            className="h-full text-base font-semibold transition-all data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-green-100"
+            className="h-full text-base font-semibold transition-all border-2 border-transparent data-[state=active]:bg-green-500 data-[state=active]:border-green-600 data-[state=active]:text-white data-[state=active]:shadow-xl hover:bg-green-50 hover:border-green-200"
           >
             <span className="flex items-center gap-2">
-              <span className="text-lg">🔑</span>
+              <span className="text-xl">🔑</span>
               להשכרה
             </span>
           </TabsTrigger>
           <TabsTrigger 
             value="sale" 
-            className="h-full text-base font-semibold transition-all data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-blue-100"
+            className="h-full text-base font-semibold transition-all border-2 border-transparent data-[state=active]:bg-blue-500 data-[state=active]:border-blue-600 data-[state=active]:text-white data-[state=active]:shadow-xl hover:bg-blue-50 hover:border-blue-200"
           >
             <span className="flex items-center gap-2">
-              <span className="text-lg">🏷️</span>
+              <span className="text-xl">🏷️</span>
               למכירה
             </span>
           </TabsTrigger>
