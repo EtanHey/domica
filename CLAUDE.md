@@ -89,3 +89,7 @@ Use `// <scratchpad>` or `// AI-DEV:` for important implementation notes that ot
 - Commit often to keep changes minimal and incremental
 - Use Context7 MCP tool for accessing library documentation
 - Check browser tools (takeScreenshot) after making client-side changes
+
+## Cleanup Guidelines
+
+- If you create any temporary new files, scripts, or helper files for iteration, clean up these files by removing them at the end of the task

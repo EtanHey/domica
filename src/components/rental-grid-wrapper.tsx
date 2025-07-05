@@ -12,7 +12,7 @@ export function RentalGridWrapper() {
       <h2 className="text-3xl font-bold text-center mb-6">נכסים זמינים</h2>
       
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'rent' | 'sale')} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8 max-w-2xl mx-auto h-16 p-2 bg-background border-2 border-border rounded-lg shadow-md">
+        <TabsList className="grid w-full grid-cols-3 mb-8 max-w-2xl mx-auto h-16 p-2 bg-background gap-2">
           <TabsTrigger 
             value="all" 
             className="h-full text-base font-semibold transition-all border-2 border-transparent data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-xl data-[state=active]:text-foreground hover:bg-muted/50"
