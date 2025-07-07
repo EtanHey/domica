@@ -18,7 +18,7 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
 
   // Sort images to have primary image first
   const images = property.images || [];
-  
+
   const sortedImages = [...images].sort((a, b) => {
     if (a.isPrimary) return -1;
     if (b.isPrimary) return 1;
@@ -27,26 +27,34 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
 
   const imageUrls =
     sortedImages.length > 0
-      ? sortedImages.map((img) => img.imageUrl).filter(url => {
-          // Only allow UploadThing URLs and valid HTTP URLs, filter out Yad2 URLs and SVGs
-          return url && 
-                 typeof url === 'string' && 
-                 !url.startsWith('data:') && 
-                 !url.toLowerCase().endsWith('.svg') &&
-                 (url.includes('utfs.io') || url.includes('uploadthing.') || 
-                  (url.startsWith('http') && !url.includes('yad2.co.il') && !url.includes('img.yad2')));
-        })
+      ? sortedImages
+          .map((img) => img.imageUrl)
+          .filter((url) => {
+            // Only allow UploadThing URLs and valid HTTP URLs, filter out Yad2 URLs and SVGs
+            return (
+              url &&
+              typeof url === 'string' &&
+              !url.startsWith('data:') &&
+              !url.toLowerCase().endsWith('.svg') &&
+              (url.includes('utfs.io') ||
+                url.includes('uploadthing.') ||
+                (url.startsWith('http') &&
+                  !url.includes('yad2.co.il') &&
+                  !url.includes('img.yad2')))
+            );
+          })
       : [];
 
   // If no valid URLs, use fallback
-  const finalImageUrls = imageUrls.length > 0 
-    ? imageUrls 
-    : ['https://utfs.io/f/ErznS8cNMHlPwNeWJbGFASWOq8cpgZKI6N2mDBoGVLrsvlfC'];
+  const finalImageUrls =
+    imageUrls.length > 0
+      ? imageUrls
+      : ['https://utfs.io/f/ErznS8cNMHlPwNeWJbGFASWOq8cpgZKI6N2mDBoGVLrsvlfC'];
 
   const formatPrice = (price: string) => {
     // Convert ₪ symbol to ILS code for Intl.NumberFormat
-    const currencyCode = property.currency === '₪' ? 'ILS' : (property.currency || 'ILS');
-    
+    const currencyCode = property.currency === '₪' ? 'ILS' : property.currency || 'ILS';
+
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
       currency: currencyCode,
@@ -66,7 +74,7 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-lg bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800 dark:border dark:border-gray-700">
+    <div className="group relative overflow-hidden rounded-lg bg-white shadow-sm transition-shadow hover:shadow-md dark:border dark:border-gray-700 dark:bg-gray-800">
       <Link href={`/property/${property.id}`}>
         <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
           {/* Main Image */}
@@ -114,8 +122,10 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
                     e.stopPropagation();
                     setCurrentImageIndex(index);
                   }}
-                  className={`h-2 w-2 rounded-full transition-all shadow-md ${
-                    index === currentImageIndex ? 'w-6 bg-white scale-110' : 'bg-white/70 hover:bg-white/90'
+                  className={`h-2 w-2 rounded-full shadow-md transition-all ${
+                    index === currentImageIndex
+                      ? 'w-6 scale-110 bg-white'
+                      : 'bg-white/70 hover:bg-white/90'
                   }`}
                   aria-label={`תמונה ${index + 1}`}
                 />

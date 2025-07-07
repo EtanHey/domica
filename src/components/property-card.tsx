@@ -36,8 +36,8 @@ export function PropertyCard({ property }: PropertyCardProps) {
 
   const formatPrice = (price: string) => {
     // Convert ₪ symbol to ILS code for Intl.NumberFormat
-    const currencyCode = property.currency === '₪' ? 'ILS' : (property.currency || 'ILS');
-    
+    const currencyCode = property.currency === '₪' ? 'ILS' : property.currency || 'ILS';
+
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
       currency: currencyCode,
@@ -45,7 +45,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
   };
 
   return (
-    <div className="overflow-hidden rounded-lg bg-white shadow-sm transition-all hover:shadow-md dark:bg-gray-800 dark:border dark:border-gray-700">
+    <div className="overflow-hidden rounded-lg bg-white shadow-sm transition-all hover:shadow-md dark:border dark:border-gray-700 dark:bg-gray-800">
       <Link href={`/property/${property.id}`}>
         <div className="relative h-48 w-full">
           <Image

@@ -7,7 +7,9 @@ interface RentPropertiesPageProps {
   }>;
 }
 
-export default async function RentPropertiesPageWithPagination({ params }: RentPropertiesPageProps) {
+export default async function RentPropertiesPageWithPagination({
+  params,
+}: RentPropertiesPageProps) {
   const { page } = await params;
   const pageNumber = parseInt(page) || 1;
 

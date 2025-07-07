@@ -36,7 +36,7 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
   // Function to navigate to a new page
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    
+
     // Build the new URL based on listing type
     let newPath = '';
     if (listingType === 'all') {
@@ -44,10 +44,10 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
     } else {
       newPath = `/${listingType}/${newPage}`;
     }
-    
+
     // Navigate without auto-scroll, then smooth scroll manually
     router.push(newPath, { scroll: false });
-    
+
     // Delay the smooth scroll slightly to ensure navigation completes
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -126,7 +126,9 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  href={page > 1 ? `${listingType === 'all' ? '' : `/${listingType}`}/${page - 1}` : '#'}
+                  href={
+                    page > 1 ? `${listingType === 'all' ? '' : `/${listingType}`}/${page - 1}` : '#'
+                  }
                   onClick={(e) => {
                     e.preventDefault();
                     if (page > 1) handlePageChange(page - 1);
@@ -171,7 +173,11 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
 
               <PaginationItem>
                 <PaginationNext
-                  href={page < totalPages ? `${listingType === 'all' ? '' : `/${listingType}`}/${page + 1}` : '#'}
+                  href={
+                    page < totalPages
+                      ? `${listingType === 'all' ? '' : `/${listingType}`}/${page + 1}`
+                      : '#'
+                  }
                   onClick={(e) => {
                     e.preventDefault();
                     if (page < totalPages) handlePageChange(page + 1);

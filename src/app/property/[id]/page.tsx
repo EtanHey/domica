@@ -36,7 +36,7 @@ async function getProperty(id: string) {
   let masterProperty = null;
   if (data.master_property_id) {
     const { data: master } = await supabase
-      .from('propertys')
+      .from('properties')
       .select('id, title, price_per_month, location_text')
       .eq('id', data.master_property_id)
       .single();
@@ -47,7 +47,7 @@ async function getProperty(id: string) {
   let duplicates: any[] = [];
   if (data.duplicate_status === 'master') {
     const { data: dupes } = await supabase
-      .from('propertys')
+      .from('properties')
       .select('id, title, price_per_month, location_text, duplicate_status, duplicate_score')
       .eq('master_property_id', data.id)
       .order('duplicate_score', { ascending: false });

@@ -136,7 +136,7 @@ export class Yad2Scraper {
       const scrapedListings = await this.scraper.scrapeSearchResults(url, maxListings);
       console.log(`Found ${scrapedListings.length} listings`);
 
-      return scrapedListings.map(listing => this.convertToYad2Listing(listing));
+      return scrapedListings.map((listing) => this.convertToYad2Listing(listing));
     } catch (error) {
       console.error('Error scraping Yad2:', error);
       throw error;
@@ -412,9 +412,16 @@ export class Yad2Scraper {
       for (const listing of listings) {
         try {
           // Validate price before saving
+          if (listing.price === 0) {
+            console.warn(`No price found for listing ${listing.title}, skipping...`);
+            errors.push(`No price found for listing: ${listing.title}`);
+            continue; // Skip listings without prices
+          }
+
           if (listing.price > 99999999) {
             console.warn(`Price too large for listing ${listing.title}: ${listing.price}`);
-            listing.price = 0; // Set to 0 to indicate price needs review
+            errors.push(`Price too large for listing: ${listing.title} (${listing.price})`);
+            continue; // Skip listings with invalid prices
           }
 
           const result = await this.saveListing(listing);

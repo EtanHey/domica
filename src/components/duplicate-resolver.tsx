@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { PropertyComparisonModal } from './property-comparison-modal';
+import Link from 'next/link';
 
 interface DuplicateResolverProps {
   propertyId: string;
@@ -35,8 +35,6 @@ export function DuplicateResolver({
   const [loading, setLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMergeDialog, setShowMergeDialog] = useState(false);
-  const [showComparisonModal, setShowComparisonModal] = useState(false);
-  const [selectedPropertyForComparison, setSelectedPropertyForComparison] = useState<any>(null);
   const [selectedMasterForDelete, setSelectedMasterForDelete] = useState<string>('');
   const [selectedForMerge, setSelectedForMerge] = useState<string[]>([]);
   const [mergeKeepId, setMergeKeepId] = useState<string>(propertyId);
@@ -200,8 +198,10 @@ export function DuplicateResolver({
                     key={property.id}
                     className="hover:bg-muted/50 block cursor-pointer rounded-lg border p-3 transition-colors"
                     onClick={() => {
-                      setSelectedPropertyForComparison(property);
-                      setShowComparisonModal(true);
+                      window.open(
+                        `/compare?property1=${propertyId}&property2=${property.id}`,
+                        '_blank'
+                      );
                     }}
                   >
                     <div className="flex items-start justify-between">
@@ -223,8 +223,10 @@ export function DuplicateResolver({
                         className="ml-2"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedPropertyForComparison(property);
-                          setShowComparisonModal(true);
+                          window.open(
+                            `/compare?property1=${propertyId}&property2=${property.id}`,
+                            '_blank'
+                          );
                         }}
                       >
                         <Eye className="h-4 w-4" />
@@ -473,61 +475,6 @@ export function DuplicateResolver({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Comparison Modal */}
-      {showComparisonModal && selectedPropertyForComparison && currentProperty && (
-        <PropertyComparisonModal
-          open={showComparisonModal}
-          onOpenChange={setShowComparisonModal}
-          property1={currentProperty}
-          property2={selectedPropertyForComparison}
-          onMarkAsUnique={() => {
-            handleMarkAsUnique();
-            setShowComparisonModal(false);
-          }}
-          onMarkAsDuplicate={async (keepId, duplicateId) => {
-            setSelectedMasterForDelete(keepId);
-            setShowComparisonModal(false);
-
-            // Call the API directly since we have all the info
-            setLoading(true);
-            try {
-              const response = await fetch('/api/resolve-duplicate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  propertyId: duplicateId,
-                  decision: 'duplicate',
-                  masterPropertyId: keepId,
-                }),
-              });
-
-              const data = await response.json();
-
-              if (response.ok) {
-                toast({
-                  title: '✅ הפעולה בוצעה בהצלחה',
-                  description: 'הנכס סומן ככפול',
-                });
-
-                setTimeout(() => {
-                  router.refresh();
-                }, 1000);
-              } else {
-                throw new Error(data.error);
-              }
-            } catch (error) {
-              toast({
-                title: '❌ שגיאה',
-                description: error instanceof Error ? error.message : 'שגיאה בעדכון הסטטוס',
-                variant: 'destructive',
-              });
-            } finally {
-              setLoading(false);
-            }
-          }}
-        />
-      )}
     </>
   );
 }

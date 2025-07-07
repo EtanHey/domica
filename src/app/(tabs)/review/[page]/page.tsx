@@ -7,7 +7,9 @@ interface ReviewPropertiesPageProps {
   }>;
 }
 
-export default async function ReviewPropertiesPageWithPagination({ params }: ReviewPropertiesPageProps) {
+export default async function ReviewPropertiesPageWithPagination({
+  params,
+}: ReviewPropertiesPageProps) {
   const { page } = await params;
   const pageNumber = parseInt(page) || 1;
 

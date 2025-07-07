@@ -5,15 +5,17 @@
 Based on testing with the actual Firecrawl API, the response structure differs from what might be expected:
 
 ### Key Finding: Response Format
+
 - Firecrawl's `scrapeUrl` method returns data **directly on the response object**, NOT nested under a `data` property
 - The response has `success: true` along with the scraped data fields at the same level
 
 ### Actual Response Structure:
+
 ```javascript
 {
   success: true,
   markdown: "...",
-  html: "...", 
+  html: "...",
   links: [...],
   metadata: {...},
   // other fields directly on response
@@ -21,6 +23,7 @@ Based on testing with the actual Firecrawl API, the response structure differs f
 ```
 
 NOT:
+
 ```javascript
 {
   success: true,
@@ -33,6 +36,7 @@ NOT:
 ```
 
 ### Test Results from Yad2 Scraping:
+
 - Successfully scraped Yad2 search page
 - Found 132 total links, 64 of which are listing URLs
 - Listing URLs follow pattern: `/realestate/item/[id]`
@@ -41,6 +45,7 @@ NOT:
   - `https://www.yad2.co.il/realestate/item/upboolcc?opened-from=feed&component-type=main_feed&spot=platinum&location=2`
 
 ### Working ScrapeParams Configuration:
+
 ```javascript
 const scrapeParams: ScrapeParams = {
   formats: ['html', 'markdown', 'links'],
@@ -60,6 +65,7 @@ const scrapeParams: ScrapeParams = {
 ```
 
 ### CAPTCHA Detection:
+
 - Yad2 shows "Are you for real?" CAPTCHA page when detecting bots
 - Firecrawl with `proxy: 'stealth'` successfully bypasses this
 - Always check for CAPTCHA indicators in response:
@@ -67,6 +73,7 @@ const scrapeParams: ScrapeParams = {
   - Presence of "px-captcha" in HTML
 
 ### Implementation Notes:
+
 1. Always use `proxy: 'stealth'` for Yad2
 2. Set location to Israel (IL) for proper geolocation
 3. Request multiple formats (html, markdown, links) for redundancy
@@ -74,6 +81,7 @@ const scrapeParams: ScrapeParams = {
 5. Listing URLs can be filtered with pattern: `/realestate/item/`
 
 ### Error Handling:
+
 - Check `success` field first
 - If `success: false`, error details are in `error` field
 - If `success: true`, data is available directly on response object
@@ -81,35 +89,41 @@ const scrapeParams: ScrapeParams = {
 ## Live Testing Results (2025-07-07)
 
 ### Search Page Scraping: ✅ WORKING
+
 - Successfully scraped search page
 - Response structure confirmed: data fields are directly on response object
 - Found 716 total links, 64 listing URLs
 - Response fields: `['success', 'warning', 'error', 'markdown', 'metadata', 'html', 'links']`
 
 ### Individual Listing Scraping: ❌ FAILING
+
 - Error: "Invalid response format"
 - Issue: Code is checking for `'data' in result` which doesn't exist
 - Fix needed: Access fields directly from result object, not from result.data
 
 ### Code Issues Found:
+
 1. In `scrapeSingleListing()`:
    - Line 171-174: Incorrectly checking for `'data' in result`
    - Line 176: Trying to destructure from `result.data` instead of `result`
-2. In `scrapeSearchResults()`: 
+2. In `scrapeSearchResults()`:
    - Similar issue with checking for data property
    - But it's working because we're already accessing fields directly
 
 ### Fixes Applied:
+
 1. ✅ Fixed `scrapeSingleListing()` to access data directly from result
 2. ✅ Fixed crawl approach to check for array response
 3. ✅ Fixed HTML extraction to use `data.html` instead of `searchResult.html`
 
 ### Testing After Fixes:
+
 - ✅ Search page scraping: Working perfectly
 - ✅ Individual listing scraping: Now working!
 - Found and scraped 10 listings successfully
 
 ### Console Output Shows Success:
+
 ```
 Scraping with Firecrawl...
 Scraping search page with enhanced params...
@@ -121,12 +135,14 @@ Scraping 10 listings...
 ```
 
 ### Next Step:
+
 - Verify data is being properly extracted from individual listings
 - Check if listings are being saved to Supabase correctly
 
 ## Update: Single Listing Test Results ✅
 
 Successfully tested individual listing scraping:
+
 ```
 ✅ Successfully scraped listing:
 Title: דירה, אלישע הנביא 16, הנביאים, מודיעין מכבים רעות | אלפי מודעות חדשות בכל יום!
@@ -138,6 +154,7 @@ Images found: 10
 ```
 
 ### Key Observations:
+
 1. Data extraction is working correctly
 2. Price is being extracted (100000)
 3. Room count is correct (5)
@@ -146,12 +163,14 @@ Images found: 10
 6. Title and location contain Hebrew text but seem to have some parsing issues
 
 ### Remaining Issues:
+
 - Location extraction could be improved (seems to be cutting off text)
 - Need to verify if data is being saved to database
 
 ## Complete Implementation Status
 
 ### ✅ CONFIRMED WORKING:
+
 1. **Search page scraping** - Successfully extracts 64 listing URLs
 2. **Individual listing scraping** - Extracts all key data:
    - Title, price, location, rooms, size, images
@@ -163,12 +182,14 @@ Images found: 10
 4. **Firecrawl configuration** - Stealth proxy bypasses CAPTCHA
 
 ### 🔧 Implementation Details:
+
 - Firecrawl returns data directly on response object (not nested)
 - Using `proxy: 'stealth'` and Israel location settings
 - Successfully extracts listing URLs from links array
 - Individual listings are being scraped with all metadata
 
 ### 📝 Code Architecture:
+
 1. `yad2-scraper-firecrawl.ts` - Handles Firecrawl API calls
 2. `yad2-scraper.ts` - Orchestrates scraping and database saving
 3. Proper error handling and CAPTCHA detection in place
@@ -178,10 +199,12 @@ Images found: 10
 User confirmed: "it works!!!"
 
 ### Summary of Fixes Applied:
+
 1. Fixed response handling - Firecrawl returns data directly on response, not nested under 'data'
 2. Fixed individual listing scraping by removing incorrect data property checks
 3. Fixed HTML extraction to use correct variable references
 4. Maintained proper stealth configuration to bypass CAPTCHA
 
 ### Note on Deprecation Warnings:
+
 User mentioned deprecation warnings - these are likely from dependencies and don't affect functionality.

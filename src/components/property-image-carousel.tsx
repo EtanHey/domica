@@ -19,13 +19,13 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   const startX = useRef(0);
   const currentX = useRef(0);
   const isDragging = useRef(false);
-  
+
   console.log('PropertyImageCarousel debug:', {
     title,
     rawImages: images,
-    imageUrls: images?.map(img => img.image_url)
+    imageUrls: images?.map((img) => img.image_url),
   });
-  
+
   // Check if we're in RTL mode
   const isRTL = document.documentElement.dir === 'rtl';
 
@@ -33,13 +33,18 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   const sortedImages = images?.sort((a, b) => (a.image_order || 0) - (b.image_order || 0)) || [];
 
   // Filter out invalid image URLs and prioritize UploadThing URLs
-  const validImages = sortedImages.filter(img => {
-    return img?.image_url && 
-           typeof img.image_url === 'string' && 
-           !img.image_url.startsWith('data:') && 
-           (img.image_url.includes('utfs.io') || img.image_url.includes('uploadthing.') || 
-            (img.image_url.startsWith('http') && !img.image_url.includes('yad2.co.il') && !img.image_url.includes('img.yad2')) ||
-            img.image_url.startsWith('/'));
+  const validImages = sortedImages.filter((img) => {
+    return (
+      img?.image_url &&
+      typeof img.image_url === 'string' &&
+      !img.image_url.startsWith('data:') &&
+      (img.image_url.includes('utfs.io') ||
+        img.image_url.includes('uploadthing.') ||
+        (img.image_url.startsWith('http') &&
+          !img.image_url.includes('yad2.co.il') &&
+          !img.image_url.includes('img.yad2')) ||
+        img.image_url.startsWith('/'))
+    );
   });
 
   const primaryImage = validImages.find((img) => img.is_primary) || validImages[0];
@@ -89,10 +94,10 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   const handleEnd = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
-    
+
     const diff = startX.current - currentX.current;
     const threshold = 50;
-    
+
     if (Math.abs(diff) > threshold) {
       // Simple swipe logic: swipe right = next, swipe left = previous
       if (diff > 0) {
@@ -120,7 +125,7 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   return (
     <div className="w-full">
       {/* Main Carousel */}
-      <div 
+      <div
         className="relative overflow-hidden rounded-lg bg-black"
         ref={carouselRef}
         onMouseDown={(e) => handleStart(e.clientX)}
@@ -131,14 +136,14 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
         onTouchMove={(e) => handleMove(e.touches[0].clientX)}
         onTouchEnd={handleEnd}
       >
-        <div 
+        <div
           className={`flex transition-transform ${isTransitioning ? 'duration-300' : 'duration-0'}`}
-          style={{ 
-            transform: `translateX(-${currentIndex * 100}%)`
+          style={{
+            transform: `translateX(-${currentIndex * 100}%)`,
           }}
         >
           {allImages.map((image, index) => (
-            <div key={index} className="relative h-[300px] md:h-[400px] w-full flex-shrink-0">
+            <div key={index} className="relative h-[300px] w-full flex-shrink-0 md:h-[400px]">
               <img
                 src={image?.image_url || '/placeholder-rental.jpg'}
                 alt={`${title} - תמונה ${index + 1}`}
@@ -180,10 +185,10 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
           {allImages.map((_, index) => (
             <button
               key={index}
-              className={`h-3 rounded-full transition-all shadow-lg ${
-                index === currentIndex 
-                  ? 'w-8 bg-primary scale-110' 
-                  : 'w-3 bg-white/80 hover:bg-white border border-gray-300'
+              className={`h-3 rounded-full shadow-lg transition-all ${
+                index === currentIndex
+                  ? 'bg-primary w-8 scale-110'
+                  : 'w-3 border border-gray-300 bg-white/80 hover:bg-white'
               }`}
               onClick={() => goToSlide(index)}
               aria-label={`עבור לתמונה ${index + 1}`}

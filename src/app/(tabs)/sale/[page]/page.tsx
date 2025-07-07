@@ -7,7 +7,9 @@ interface SalePropertiesPageProps {
   }>;
 }
 
-export default async function SalePropertiesPageWithPagination({ params }: SalePropertiesPageProps) {
+export default async function SalePropertiesPageWithPagination({
+  params,
+}: SalePropertiesPageProps) {
   const { page } = await params;
   const pageNumber = parseInt(page) || 1;
 

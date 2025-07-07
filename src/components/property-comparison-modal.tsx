@@ -41,7 +41,7 @@ export function PropertyComparisonModal({
   const formatPrice = (price: number, currency: string = 'ILS') => {
     // Convert ₪ symbol to ILS code for Intl.NumberFormat
     const currencyCode = currency === '₪' ? 'ILS' : currency;
-    
+
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
       currency: currencyCode,
