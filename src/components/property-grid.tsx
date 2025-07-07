@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { RentalCard } from './rental-card';
-import { useRentals } from '@/hooks/use-rentals';
-import type { RentalWithRelations } from '@/types/rental';
+import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { PropertyCardWithCarousel } from './property-card-with-carousel';
+import { useProperties } from '@/hooks/use-properties';
+import type { PropertyWithRelations } from '@/types/property';
 import {
   Pagination,
   PaginationContent,
@@ -14,16 +15,55 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 
-// AI-DEV: Main grid component for displaying rental listings
+// AI-DEV: Main grid component for displaying property listings
 // <scratchpad>Uses custom hook with TanStack Query for data fetching</scratchpad>
 
-interface RentalGridProps {
-  listingType?: 'all' | 'rent' | 'sale';
+interface PropertyGridProps {
+  listingType?: 'all' | 'rent' | 'sale' | 'review';
+  initialPage?: number;
 }
 
-export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
-  const [page, setPage] = useState(1);
-  const { data, isLoading, error } = useRentals({ page, limit: 20 });
+export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyGridProps) {
+  const [page, setPage] = useState(initialPage);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Update page when initialPage changes
+  useEffect(() => {
+    setPage(initialPage);
+  }, [initialPage]);
+
+  // Function to navigate to a new page
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    
+    // Build the new URL based on listing type
+    let newPath = '';
+    if (listingType === 'all') {
+      newPath = `/${newPage}`;
+    } else {
+      newPath = `/${listingType}/${newPage}`;
+    }
+    
+    // Navigate without auto-scroll, then smooth scroll manually
+    router.push(newPath, { scroll: false });
+    
+    // Delay the smooth scroll slightly to ensure navigation completes
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 50);
+  };
+
+  // Build filters based on listing type
+  const filters = {
+    page,
+    limit: 20,
+    ...(listingType === 'rent' && { listingType: 'rent' as const }),
+    ...(listingType === 'sale' && { listingType: 'sale' as const }),
+    ...(listingType === 'review' && { duplicateStatus: 'review' as const }),
+  };
+
+  const { data, isLoading, error } = useProperties(filters);
 
   if (isLoading) {
     return (
@@ -43,10 +83,10 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
     );
   }
 
-  const rentals = data?.rentals || [];
+  const properties = data?.properties || [];
   const totalPages = data?.totalPages || 1;
 
-  if (!data || rentals.length === 0) {
+  if (!data || properties.length === 0) {
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground text-lg">אין נתונים להצגה</p>
@@ -54,46 +94,29 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
     );
   }
 
-  // Filter rentals based on listing type and exclude duplicates
-  const activeRentals = (rentals as RentalWithRelations[]).filter((rental) => {
-    // Always exclude duplicates
-    if (rental.duplicate_status === 'duplicate') return false;
-
-    // Filter by listing type
-    if (listingType === 'all') return true;
-    return rental.listing_type === listingType;
-  });
+  // Data is already filtered server-side, no need for client-side filtering
+  const activeProperties = properties as PropertyWithRelations[];
 
   return (
     <div className="space-y-4">
       <p dir="rtl" className="text-muted-foreground">
-        מציג {activeRentals.length} מתוך {data.totalCount}{' '}
+        מציג {activeProperties.length} מתוך {data.totalCount}{' '}
         {listingType === 'rent'
           ? 'דירות להשכרה'
           : listingType === 'sale'
             ? 'דירות למכירה'
-            : 'נכסים'}
+            : listingType === 'review'
+              ? 'נכסים לבדיקה'
+              : 'נכסים'}
         {page > 1 && ` (עמוד ${page})`}
       </p>
 
-      <div dir="rtl" className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {activeRentals.map((rental) => (
-          <RentalCard
-            key={rental.id}
-            rental={{
-              ...rental,
-              price_per_month: parseFloat(rental.price_per_month),
-              location_text: rental.location_text || '',
-              bathrooms: rental.bathrooms ? parseFloat(rental.bathrooms) : undefined,
-              currency: rental.currency || undefined,
-              bedrooms: rental.bedrooms ?? undefined,
-              rental_images:
-                rental.rental_images?.map((img) => ({
-                  ...img,
-                  is_primary: img.is_primary ?? undefined,
-                })) ?? undefined,
-            }}
-          />
+      <div
+        dir="rtl"
+        className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      >
+        {activeProperties.map((property) => (
+          <PropertyCardWithCarousel key={property.id} property={property} />
         ))}
       </div>
 
@@ -102,16 +125,16 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
           <Pagination>
             <PaginationContent>
               <PaginationItem>
-                <PaginationPrevious 
-                  href="#"
+                <PaginationPrevious
+                  href={page > 1 ? `${listingType === 'all' ? '' : `/${listingType}`}/${page - 1}` : '#'}
                   onClick={(e) => {
                     e.preventDefault();
-                    if (page > 1) setPage(page - 1);
+                    if (page > 1) handlePageChange(page - 1);
                   }}
                   className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                 />
               </PaginationItem>
-              
+
               {[...Array(totalPages)].map((_, i) => {
                 const pageNum = i + 1;
                 // Show first page, last page, current page, and pages around current
@@ -123,11 +146,11 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
                   return (
                     <PaginationItem key={pageNum}>
                       <PaginationLink
-                        href="#"
+                        href={`${listingType === 'all' ? '' : `/${listingType}`}/${pageNum}`}
                         onClick={(e) => {
                           e.preventDefault();
                           if (pageNum !== page) {
-                            setPage(pageNum);
+                            handlePageChange(pageNum);
                           }
                         }}
                         isActive={pageNum === page}
@@ -145,15 +168,17 @@ export function RentalGrid({ listingType = 'all' }: RentalGridProps) {
                 }
                 return null;
               })}
-              
+
               <PaginationItem>
                 <PaginationNext
-                  href="#"
+                  href={page < totalPages ? `${listingType === 'all' ? '' : `/${listingType}`}/${page + 1}` : '#'}
                   onClick={(e) => {
                     e.preventDefault();
-                    if (page < totalPages) setPage(page + 1);
+                    if (page < totalPages) handlePageChange(page + 1);
                   }}
-                  className={page === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  className={
+                    page === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                  }
                 />
               </PaginationItem>
             </PaginationContent>

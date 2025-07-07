@@ -1,0 +1,337 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { DuplicateResolver } from './duplicate-resolver';
+import { PropertyImageCarousel } from './property-image-carousel';
+import {
+  ArrowRight,
+  MapPin,
+  Home,
+  Bed,
+  Bath,
+  Square,
+  Calendar,
+  Phone,
+  User,
+  CheckCircle,
+  ExternalLink,
+} from 'lucide-react';
+
+interface PropertyDetailProps {
+  property: any; // TODO: Add proper type
+  masterProperty?: any;
+  duplicates?: any[];
+}
+
+export function PropertyDetail({ property, masterProperty, duplicates = [] }: PropertyDetailProps) {
+  const [similarProperties, setSimilarProperties] = useState<any[]>([]);
+
+  // Fetch similar properties if this is marked for review and has no master
+  useEffect(() => {
+    if (property.duplicate_status === 'review' && !masterProperty) {
+      fetch('/api/find-similar-properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyId: property.id }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.similarProperties) {
+            setSimilarProperties(data.similarProperties);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [property.id, property.duplicate_status, masterProperty]);
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('he-IL', {
+      style: 'currency',
+      currency: property.currency || 'ILS',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8" dir="rtl">
+      {/* Back button */}
+      <Button
+        variant="ghost"
+        className="mb-6"
+        onClick={() => {
+          // Try to go back, but if there's no history, go to the home page
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.location.href = '/';
+          }
+        }}
+      >
+        <ArrowRight className="ml-2 h-4 w-4" />
+        חזרה לרשימה
+      </Button>
+
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Main content */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Image gallery */}
+          <Card>
+            <PropertyImageCarousel images={property.property_images || []} title={property.title} />
+          </Card>
+
+          {/* Title and basic info */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <h1 className="text-2xl font-bold">{property.title}</h1>
+                  {property.listing_type && (
+                    <Badge
+                      variant={property.listing_type === 'rent' ? 'default' : 'secondary'}
+                      className="mt-2"
+                    >
+                      {property.listing_type === 'rent' ? 'להשכרה' : 'למכירה'}
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="text-muted-foreground flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{property.location_text || 'מיקום לא צוין'}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {property.bedrooms !== null && property.bedrooms !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <Bed className="text-muted-foreground h-4 w-4" />
+                      <span>{property.bedrooms} חדרי שינה</span>
+                    </div>
+                  )}
+                  {property.bathrooms && (
+                    <div className="flex items-center gap-2">
+                      <Bath className="text-muted-foreground h-4 w-4" />
+                      <span>{property.bathrooms} חדרי רחצה</span>
+                    </div>
+                  )}
+                  {property.square_feet && (
+                    <div className="flex items-center gap-2">
+                      <Square className="text-muted-foreground h-4 w-4" />
+                      <span>{property.square_feet} מ"ר</span>
+                    </div>
+                  )}
+                  {property.property_type && (
+                    <div className="flex items-center gap-2">
+                      <Home className="text-muted-foreground h-4 w-4" />
+                      <span>{property.property_type}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Description */}
+          {property.description && (
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="mb-4 text-lg font-semibold">תיאור</h2>
+                <p className="text-muted-foreground whitespace-pre-wrap">{property.description}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Amenities */}
+          {property.property_amenities && property.property_amenities.length > 0 && (
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="mb-4 text-lg font-semibold">מתקנים ותכונות</h2>
+                <div className="flex flex-wrap gap-2">
+                  {property.property_amenities.map((item: any) => (
+                    <Badge key={item.amenity.id} variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      {item.amenity.name}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Price card */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-muted-foreground text-sm">
+                    {property.listing_type === 'rent' ? 'מחיר לחודש' : 'מחיר'}
+                  </p>
+                  <p className="text-primary text-3xl font-bold">
+                    {formatPrice(property.price_per_month)}
+                    {property.listing_type === 'rent' && <span className="text-lg">/חודש</span>}
+                  </p>
+                </div>
+
+                {property.available_date && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="text-muted-foreground h-4 w-4" />
+                    <span>
+                      זמין מ: {new Date(property.available_date).toLocaleDateString('he-IL')}
+                    </span>
+                  </div>
+                )}
+
+                {property.phone_normalized && (
+                  <Button className="w-full" size="lg">
+                    <Phone className="ml-2 h-4 w-4" />
+                    צור קשר
+                  </Button>
+                )}
+
+                {property.source_url && (
+                  <Button variant="outline" className="w-full" asChild>
+                    <a href={property.source_url} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                      צפה במקור
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Landlord info */}
+          {property.landlord && (
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="mb-4 text-lg font-semibold">פרטי בעל הנכס</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    {property.landlord.profile_image_url ? (
+                      <Image
+                        src={property.landlord.profile_image_url}
+                        alt={property.landlord.name}
+                        width={48}
+                        height={48}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
+                        <User className="text-muted-foreground h-6 w-6" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium">{property.landlord.name}</p>
+                      {property.landlord.phone && (
+                        <p className="text-muted-foreground text-sm">{property.landlord.phone}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Additional info */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="mb-4 text-lg font-semibold">מידע נוסף</h3>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">מקור:</dt>
+                  <dd className="font-medium">{property.source_platform || 'לא ידוע'}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">נוסף בתאריך:</dt>
+                  <dd className="font-medium">
+                    {new Date(property.created_at).toLocaleDateString('he-IL')}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">עודכן לאחרונה:</dt>
+                  <dd className="font-medium">
+                    {new Date(property.updated_at).toLocaleDateString('he-IL')}
+                  </dd>
+                </div>
+                {property.duplicate_status === 'review' && (
+                  <div className="mt-3 rounded-lg bg-yellow-50 p-3 text-yellow-800">
+                    <p className="text-sm font-medium">⚠️ נכס זה מסומן לבדיקה</p>
+                    <p className="mt-1 text-xs">ייתכן שקיים נכס דומה במערכת</p>
+                    {masterProperty && (
+                      <Link
+                        href={`/property/${masterProperty.id}`}
+                        className="mt-2 inline-flex items-center text-xs text-yellow-700 underline hover:text-yellow-900"
+                      >
+                        צפה בנכס הדומה: {masterProperty.title}
+                        <ExternalLink className="mr-1 h-3 w-3" />
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </dl>
+            </CardContent>
+          </Card>
+
+          {/* Duplicate resolver for propertys in review */}
+          {property.duplicate_status === 'review' && (
+            <DuplicateResolver
+              propertyId={property.id}
+              similarProperties={similarProperties}
+              masterPropertyId={masterProperty?.id}
+              currentProperty={property}
+            />
+          )}
+
+          {/* Duplicates section for master propertys */}
+          {duplicates.length > 0 && (
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="mb-4 text-lg font-semibold">נכסים דומים שזוהו</h3>
+                <div className="space-y-3">
+                  {duplicates.map((dup) => (
+                    <div
+                      key={dup.id}
+                      className="hover:bg-muted/50 rounded-lg border p-3 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <Link
+                            href={`/property/${dup.id}`}
+                            className="text-primary font-medium hover:underline"
+                          >
+                            {dup.title}
+                          </Link>
+                          <p className="text-muted-foreground mt-1 text-sm">
+                            {dup.location_text} • {formatPrice(dup.price_per_month)}
+                            {property.listing_type === 'rent' && '/חודש'}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={
+                            dup.duplicate_status === 'duplicate' ? 'destructive' : 'secondary'
+                          }
+                          className="text-xs"
+                        >
+                          {dup.duplicate_status === 'duplicate' ? 'כפול' : 'לבדיקה'}
+                          {dup.duplicate_score && ` (${dup.duplicate_score}%)`}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

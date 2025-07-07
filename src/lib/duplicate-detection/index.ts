@@ -4,7 +4,7 @@ import { openai } from '@/lib/openai';
 import { computeImageHashes, compareHashes } from './image-hashing';
 import { normalizePhoneNumber } from './phone-utils';
 import { calculateTextSimilarity } from './text-similarity';
-import { DatabaseRental, RentalInput, DuplicateCheckResult, MergeStrategy } from './types';
+import { DatabaseProperty, PropertyInput, DuplicateCheckResult, MergeStrategy } from './types';
 
 const DUPLICATE_THRESHOLD = 85;
 const REVIEW_THRESHOLD = 65;
@@ -27,21 +27,36 @@ export class DuplicateDetectionService {
     };
   }
 
-  async checkForDuplicate(rental: RentalInput): Promise<DuplicateCheckResult> {
-    // Phase 1: Check for exact source match
-    const exactMatch = await this.checkExactSourceMatch(rental);
+  async checkForDuplicate(property: PropertyInput): Promise<DuplicateCheckResult> {
+    // Phase 1: Check for exact source URL match first (most efficient)
+    // Only check if we have a valid listing URL (not a search URL)
+    if (property.sourceUrl && property.sourceUrl.includes('/item/')) {
+      const urlMatch = await this.checkSourceUrlMatch(property.sourceUrl);
+      if (urlMatch) {
+        return {
+          isDuplicate: true,
+          confidence: 'high',
+          matchedProperty: urlMatch,
+          score: 100,
+          action: 'update',
+        };
+      }
+    }
+
+    // Phase 2: Check for exact source platform + ID match
+    const exactMatch = await this.checkExactSourceMatch(property);
     if (exactMatch) {
       return {
         isDuplicate: true,
         confidence: 'high',
-        matchedRental: exactMatch,
+        matchedProperty: exactMatch,
         score: 100,
         action: 'update',
       };
     }
 
     // Phase 2: Find nearby candidates
-    const candidates = await this.findNearbyCandidates(rental);
+    const candidates = await this.findNearbyCandidates(property);
     if (candidates.length === 0) {
       return {
         isDuplicate: false,
@@ -53,7 +68,7 @@ export class DuplicateDetectionService {
 
     // Phase 3: Score each candidate
     const scores = await Promise.all(
-      candidates.map((candidate) => this.calculateSimilarityScore(rental, candidate))
+      candidates.map((candidate) => this.calculateSimilarityScore(property, candidate))
     );
 
     // Phase 4: Determine best match
@@ -63,7 +78,7 @@ export class DuplicateDetectionService {
       return {
         isDuplicate: true,
         confidence: 'high',
-        matchedRental: bestMatch.rental,
+        matchedProperty: bestMatch.property,
         score: bestMatch.totalScore,
         scoreBreakdown: bestMatch.breakdown,
         action: 'merge',
@@ -72,11 +87,11 @@ export class DuplicateDetectionService {
 
     if (bestMatch.totalScore >= REVIEW_THRESHOLD) {
       // Queue for manual/AI review
-      const reviewId = await this.queueForReview(rental, bestMatch);
+      const reviewId = await this.queueForReview(property, bestMatch);
       return {
         isDuplicate: false,
         confidence: 'medium',
-        matchedRental: bestMatch.rental,
+        matchedProperty: bestMatch.property,
         score: bestMatch.totalScore,
         scoreBreakdown: bestMatch.breakdown,
         action: 'review',
@@ -92,17 +107,19 @@ export class DuplicateDetectionService {
     };
   }
 
-  private async checkExactSourceMatch(rental: RentalInput): Promise<DatabaseRental | null> {
+  private async checkSourceUrlMatch(sourceUrl: string): Promise<DatabaseProperty | null> {
+    // Normalize the URL by removing query parameters and fragments
+    const normalizedUrl = this.normalizeUrl(sourceUrl);
+
     const { data } = await this.supabase
-      .from('rentals')
+      .from('properties')
       .select(
         `
         *,
-        images:rental_images(id, image_url, phash)
+        images:property_images(id, image_url, phash)
       `
       )
-      .eq('source_platform', rental.sourcePlatform)
-      .eq('source_id', rental.sourceId)
+      .eq('source_url', normalizedUrl)
       .is('deleted_at', null)
       .single();
 
@@ -110,21 +127,56 @@ export class DuplicateDetectionService {
       return {
         ...data,
         images: (data as any).images || [],
-      } as DatabaseRental;
+      } as DatabaseProperty;
     }
     return null;
   }
 
-  private async findNearbyCandidates(rental: RentalInput): Promise<DatabaseRental[]> {
+  private normalizeUrl(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      // For Yad2, we want to keep only the base URL without query params
+      // This handles URLs like: https://www.yad2.co.il/realestate/item/go77ks4g?opened-from=feed&component-type=main_feed
+      return `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+    } catch {
+      // If URL parsing fails, return as-is
+      return url;
+    }
+  }
+
+  private async checkExactSourceMatch(property: PropertyInput): Promise<DatabaseProperty | null> {
+    const { data } = await this.supabase
+      .from('properties')
+      .select(
+        `
+        *,
+        images:property_images(id, image_url, phash)
+      `
+      )
+      .eq('source_platform', property.sourcePlatform)
+      .eq('source_id', property.sourceId)
+      .is('deleted_at', null)
+      .single();
+
+    if (data) {
+      return {
+        ...data,
+        images: (data as any).images || [],
+      } as DatabaseProperty;
+    }
+    return null;
+  }
+
+  private async findNearbyCandidates(property: PropertyInput): Promise<DatabaseProperty[]> {
     // For now, without PostGIS, we'll search by location text and title similarity
     // In production, you'd use the PostGIS function after running the migration
 
     const { data } = await this.supabase
-      .from('rentals')
+      .from('properties')
       .select(
         `
         *,
-        images:rental_images(id, image_url, phash)
+        images:property_images(id, image_url, phash)
       `
       )
       .is('deleted_at', null)
@@ -135,18 +187,20 @@ export class DuplicateDetectionService {
     // Filter by location text similarity or title similarity
     return data
       .filter((r) => {
-        if (rental.address && r.location_text) {
+        if (property.address && r.location_text) {
           // Simple text matching for now
-          const rentalLocation = rental.address.toLowerCase();
+          const propertyLocation = property.address.toLowerCase();
           const existingLocation = ((r.location_text as string) || '').toLowerCase();
 
           // Check if they share common location keywords
-          const rentalWords = rentalLocation.split(/[\s,]+/).filter((w: string) => w.length > 2);
+          const propertyWords = propertyLocation
+            .split(/[\s,]+/)
+            .filter((w: string) => w.length > 2);
           const existingWords = existingLocation
             .split(/[\s,]+/)
             .filter((w: string) => w.length > 2);
 
-          const commonWords = rentalWords.filter((w) => existingWords.includes(w));
+          const commonWords = propertyWords.filter((w) => existingWords.includes(w));
           return commonWords.length >= 2; // At least 2 common words
         }
         return false;
@@ -154,10 +208,13 @@ export class DuplicateDetectionService {
       .map((r) => ({
         ...r,
         images: (r as any).images || [],
-      })) as DatabaseRental[];
+      })) as DatabaseProperty[];
   }
 
-  private async calculateSimilarityScore(newRental: RentalInput, existingRental: DatabaseRental) {
+  private async calculateSimilarityScore(
+    newProperty: PropertyInput,
+    existingProperty: DatabaseProperty
+  ) {
     const breakdown = {
       locationScore: 0,
       titleScore: 0,
@@ -168,63 +225,63 @@ export class DuplicateDetectionService {
     };
 
     // Location scoring (max 40 points)
-    if (newRental.location && existingRental.location) {
-      const distance = this.calculateDistance(newRental.location, existingRental.location);
+    if (newProperty.location && existingProperty.location) {
+      const distance = this.calculateDistance(newProperty.location, existingProperty.location);
       if (distance < 1) breakdown.locationScore = 40;
       else if (distance < 10) breakdown.locationScore = 35;
       else if (distance < 50) breakdown.locationScore = 25;
       else if (distance < 100) breakdown.locationScore = 15;
       else if (distance < 200) breakdown.locationScore = 5;
-    } else if (newRental.address && existingRental.location_text) {
+    } else if (newProperty.address && existingProperty.location_text) {
       // Fallback to text-based location matching
       const locationSimilarity = await calculateTextSimilarity(
-        newRental.address,
-        existingRental.location_text,
+        newProperty.address,
+        existingProperty.location_text,
         'hebrew'
       );
       breakdown.locationScore = Math.round(locationSimilarity * 40);
     }
 
     // Title similarity (max 20 points)
-    if (newRental.title && existingRental.title) {
+    if (newProperty.title && existingProperty.title) {
       const titleSimilarity = await calculateTextSimilarity(
-        newRental.title,
-        existingRental.title,
+        newProperty.title,
+        existingProperty.title,
         'hebrew'
       );
       breakdown.titleScore = Math.round(titleSimilarity * 20);
     }
 
     // Description similarity (max 15 points)
-    if (newRental.description && existingRental.description) {
+    if (newProperty.description && existingProperty.description) {
       const descSimilarity = await calculateTextSimilarity(
-        newRental.description,
-        existingRental.description,
+        newProperty.description,
+        existingProperty.description,
         'hebrew'
       );
       breakdown.descriptionScore = Math.round(descSimilarity * 15);
     }
 
     // Price similarity (max 10 points)
-    const rentalPrice = newRental.price;
-    const existingPrice = existingRental.price_per_month;
-    if (rentalPrice && existingPrice) {
-      const priceDiff = Math.abs(rentalPrice - existingPrice);
-      const priceRatio = priceDiff / Math.max(rentalPrice, existingPrice);
+    const propertyPrice = newProperty.price;
+    const existingPrice = existingProperty.price_per_month;
+    if (propertyPrice && existingPrice) {
+      const priceDiff = Math.abs(propertyPrice - existingPrice);
+      const priceRatio = priceDiff / Math.max(propertyPrice, existingPrice);
       if (priceRatio < 0.05) breakdown.priceScore = 10;
       else if (priceRatio < 0.1) breakdown.priceScore = 7;
       else if (priceRatio < 0.2) breakdown.priceScore = 3;
     }
 
     // Image similarity (max 30 points)
-    if (newRental.images?.length && existingRental.images?.length) {
-      breakdown.imageScore = await this.compareImages(newRental.images, existingRental.images);
+    if (newProperty.images?.length && existingProperty.images?.length) {
+      breakdown.imageScore = await this.compareImages(newProperty.images, existingProperty.images);
     }
 
     // Phone similarity (max 20 points)
-    if (newRental.phone && existingRental.phone_normalized) {
-      const normalizedNew = normalizePhoneNumber(newRental.phone);
-      if (normalizedNew === existingRental.phone_normalized) {
+    if (newProperty.phone && existingProperty.phone_normalized) {
+      const normalizedNew = normalizePhoneNumber(newProperty.phone);
+      if (normalizedNew === existingProperty.phone_normalized) {
         breakdown.phoneScore = 20;
       }
     }
@@ -232,7 +289,7 @@ export class DuplicateDetectionService {
     const totalScore = Object.values(breakdown).reduce((sum, score) => sum + score, 0);
 
     return {
-      rental: existingRental,
+      property: existingProperty,
       totalScore,
       breakdown,
     };
@@ -289,58 +346,58 @@ export class DuplicateDetectionService {
     }
   }
 
-  async mergeRentals(
+  async mergeProperties(
     masterId: string,
-    duplicateRental: RentalInput,
+    duplicateProperty: PropertyInput,
     strategy: MergeStrategy = 'preserve_complete'
   ): Promise<void> {
     const { data: master } = await this.supabase
-      .from('rentals')
+      .from('properties')
       .select('*')
       .eq('id', masterId)
       .single();
 
-    if (!master) throw new Error('Master rental not found');
+    if (!master) throw new Error('Master property not found');
 
-    const updates: Partial<DatabaseRental> = {};
+    const updates: Partial<DatabaseProperty> = {};
     const mergedFields: string[] = [];
 
     // Title: Keep longer, more descriptive
     if (
-      duplicateRental.title &&
+      duplicateProperty.title &&
       master.title &&
-      duplicateRental.title.length > (master.title as string).length
+      duplicateProperty.title.length > (master.title as string).length
     ) {
-      updates.title = duplicateRental.title;
+      updates.title = duplicateProperty.title;
       mergedFields.push('title');
     }
 
     // Description: Keep longer or more complete
     if (
-      duplicateRental.description &&
+      duplicateProperty.description &&
       (!master.description ||
-        duplicateRental.description.length > ((master.description as string) || '').length)
+        duplicateProperty.description.length > ((master.description as string) || '').length)
     ) {
-      updates.description = duplicateRental.description;
+      updates.description = duplicateProperty.description;
       mergedFields.push('description');
     }
 
     // Price: Always update to latest
-    if (duplicateRental.price && duplicateRental.price !== master.price_per_month) {
-      updates.price_per_month = duplicateRental.price;
+    if (duplicateProperty.price && duplicateProperty.price !== master.price_per_month) {
+      updates.price_per_month = duplicateProperty.price;
       mergedFields.push('price');
     }
 
     // Location: Update if more precise
-    if (duplicateRental.location && !master.location) {
-      updates.location = `POINT(${duplicateRental.location.lng} ${duplicateRental.location.lat})`;
+    if (duplicateProperty.location && !master.location) {
+      updates.location = `POINT(${duplicateProperty.location.lng} ${duplicateProperty.location.lat})`;
       mergedFields.push('location');
     }
 
     // Phone: Update if missing
-    if (duplicateRental.phone && !master.phone_normalized) {
-      (updates as any).phone_original = duplicateRental.phone;
-      updates.phone_normalized = normalizePhoneNumber(duplicateRental.phone);
+    if (duplicateProperty.phone && !master.phone_normalized) {
+      (updates as any).phone_original = duplicateProperty.phone;
+      updates.phone_normalized = normalizePhoneNumber(duplicateProperty.phone);
       mergedFields.push('phone');
     }
 
@@ -348,20 +405,20 @@ export class DuplicateDetectionService {
     updates.last_seen_at = new Date().toISOString();
 
     // Perform the update
-    await this.supabase.from('rentals').update(updates).eq('id', masterId);
+    await this.supabase.from('properties').update(updates).eq('id', masterId);
 
     // Merge images (deduplicated)
-    if (duplicateRental.images?.length) {
-      await this.mergeImages(masterId, duplicateRental.images);
+    if (duplicateProperty.images?.length) {
+      await this.mergeImages(masterId, duplicateProperty.images);
     }
 
     // Record merge history
-    await this.supabase.from('rental_merge_history').insert({
-      master_rental_id: masterId,
+    await this.supabase.from('property_merge_history').insert({
+      master_property_id: masterId,
       merged_fields: mergedFields,
       merge_reason: 'duplicate_detected',
       previous_values: this.extractPreviousValues(
-        master as unknown as DatabaseRental,
+        master as unknown as DatabaseProperty,
         mergedFields
       ),
     });
@@ -386,12 +443,12 @@ export class DuplicateDetectionService {
     return R * c;
   }
 
-  private async queueForReview(rental: RentalInput, bestMatch: any): Promise<string> {
+  private async queueForReview(property: PropertyInput, bestMatch: any): Promise<string> {
     const { data } = await this.supabase
       .from('duplicate_reviews')
       .insert({
-        rental_data: rental,
-        matched_rental_id: bestMatch.rental.id,
+        property_data: property,
+        matched_property_id: bestMatch.property.id,
         score: bestMatch.totalScore,
         score_breakdown: bestMatch.breakdown,
         status: 'pending',
@@ -402,12 +459,12 @@ export class DuplicateDetectionService {
     return (data?.id as string) || '';
   }
 
-  private async mergeImages(rentalId: string, newImages: string[]): Promise<void> {
+  private async mergeImages(propertyId: string, newImages: string[]): Promise<void> {
     // Get existing images
     const { data: existingImages } = await this.supabase
-      .from('rental_images')
+      .from('property_images')
       .select('image_url, phash')
-      .eq('rental_id', rentalId);
+      .eq('property_id', propertyId);
 
     // Filter out duplicate images
     const uniqueNewImages = [];
@@ -422,7 +479,7 @@ export class DuplicateDetectionService {
 
       if (!isDuplicate) {
         uniqueNewImages.push({
-          rental_id: rentalId,
+          property_id: propertyId,
           image_url: newImage,
           phash: newHash.phash,
           dhash: newHash.dhash,
@@ -435,14 +492,14 @@ export class DuplicateDetectionService {
 
     // Insert unique images
     if (uniqueNewImages.length > 0) {
-      await this.supabase.from('rental_images').insert(uniqueNewImages);
+      await this.supabase.from('property_images').insert(uniqueNewImages);
     }
   }
 
-  private extractPreviousValues(rental: DatabaseRental, fields: string[]): Record<string, any> {
+  private extractPreviousValues(property: DatabaseProperty, fields: string[]): Record<string, any> {
     const values: Record<string, any> = {};
     for (const field of fields) {
-      values[field] = rental[field as keyof DatabaseRental];
+      values[field] = property[field as keyof DatabaseProperty];
     }
     return values;
   }

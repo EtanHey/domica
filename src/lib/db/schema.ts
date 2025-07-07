@@ -30,8 +30,8 @@ export const landlords = pgTable('landlords', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
-export const rentals = pgTable(
-  'rentals',
+export const properties = pgTable(
+  'properties',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     facebookId: varchar('facebook_id', { length: 255 }).unique().notNull(),
@@ -53,9 +53,10 @@ export const rentals = pgTable(
     listingType: varchar('listing_type', { length: 10 }).default('rent'),
     duplicateStatus: varchar('duplicate_status', { length: 20 }).default('unique'),
     duplicateScore: decimal('duplicate_score', { precision: 5, scale: 2 }),
-    masterRentalId: uuid('master_rental_id'),
-    sourceplatform: varchar('source_platform', { length: 50 }),
+    masterPropertyId: uuid('master_property_id'),
+    sourcePlatform: varchar('source_platform', { length: 50 }),
     sourceId: varchar('source_id', { length: 255 }),
+    sourceUrl: text('source_url'),
     firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -63,27 +64,27 @@ export const rentals = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    locationIdx: index('idx_rentals_location').on(table.latitude, table.longitude),
-    priceIdx: index('idx_rentals_price').on(table.pricePerMonth),
-    bedroomsIdx: index('idx_rentals_bedrooms').on(table.bedrooms),
-    activeIdx: index('idx_rentals_is_active').on(table.isActive),
+    locationIdx: index('idx_properties_location').on(table.latitude, table.longitude),
+    priceIdx: index('idx_properties_price').on(table.pricePerMonth),
+    bedroomsIdx: index('idx_properties_bedrooms').on(table.bedrooms),
+    activeIdx: index('idx_properties_is_active').on(table.isActive),
   })
 );
 
-export const rentalImages = pgTable(
-  'rental_images',
+export const propertyImages = pgTable(
+  'property_images',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    rentalId: uuid('rental_id')
+    propertyId: uuid('property_id')
       .notNull()
-      .references(() => rentals.id, { onDelete: 'cascade' }),
+      .references(() => properties.id, { onDelete: 'cascade' }),
     imageUrl: text('image_url').notNull(),
     imageOrder: integer('image_order').default(0),
     isPrimary: boolean('is_primary').default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    rentalIdx: index('idx_rental_images_rental').on(table.rentalId),
+    propertyIdx: index('idx_property_images_property').on(table.propertyId),
   })
 );
 
@@ -95,18 +96,18 @@ export const amenities = pgTable('amenities', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-export const rentalAmenities = pgTable(
-  'rental_amenities',
+export const propertyAmenities = pgTable(
+  'property_amenities',
   {
-    rentalId: uuid('rental_id')
+    propertyId: uuid('property_id')
       .notNull()
-      .references(() => rentals.id, { onDelete: 'cascade' }),
+      .references(() => properties.id, { onDelete: 'cascade' }),
     amenityId: uuid('amenity_id')
       .notNull()
       .references(() => amenities.id, { onDelete: 'cascade' }),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.rentalId, table.amenityId] }),
+    pk: primaryKey({ columns: [table.propertyId, table.amenityId] }),
   })
 );
 
@@ -114,15 +115,15 @@ export const priceHistory = pgTable(
   'price_history',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    rentalId: uuid('rental_id')
+    propertyId: uuid('property_id')
       .notNull()
-      .references(() => rentals.id, { onDelete: 'cascade' }),
+      .references(() => properties.id, { onDelete: 'cascade' }),
     price: decimal('price', { precision: 10, scale: 2 }).notNull(),
     recordedAt: timestamp('recorded_at', { withTimezone: true }).defaultNow(),
     priceChangeAmount: decimal('price_change_amount', { precision: 10, scale: 2 }),
   },
   (table) => ({
-    rentalIdx: index('idx_price_history_rental').on(table.rentalId),
+    propertyIdx: index('idx_price_history_property').on(table.propertyId),
   })
 );
 
@@ -130,67 +131,119 @@ export const scrapeMetadata = pgTable(
   'scrape_metadata',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    rentalId: uuid('rental_id')
+    propertyId: uuid('property_id')
       .notNull()
-      .references(() => rentals.id, { onDelete: 'cascade' }),
+      .references(() => properties.id, { onDelete: 'cascade' }),
     scrapedAt: timestamp('scraped_at', { withTimezone: true }).defaultNow(),
     sourceUrl: text('source_url'),
     scraperVersion: varchar('scraper_version', { length: 20 }),
     rawData: jsonb('raw_data'),
   },
   (table) => ({
-    rentalIdx: index('idx_scrape_metadata_rental').on(table.rentalId),
+    propertyIdx: index('idx_scrape_metadata_property').on(table.propertyId),
   })
 );
 
 // Relations
 export const landlordsRelations = relations(landlords, ({ many }) => ({
-  rentals: many(rentals),
+  properties: many(properties),
 }));
 
-export const rentalsRelations = relations(rentals, ({ one, many }) => ({
+export const propertiesRelations = relations(properties, ({ one, many }) => ({
   landlord: one(landlords, {
-    fields: [rentals.landlordId],
+    fields: [properties.landlordId],
     references: [landlords.id],
   }),
-  images: many(rentalImages),
-  amenities: many(rentalAmenities),
+  images: many(propertyImages),
+  amenities: many(propertyAmenities),
   priceHistory: many(priceHistory),
   scrapeMetadata: many(scrapeMetadata),
 }));
 
-export const rentalImagesRelations = relations(rentalImages, ({ one }) => ({
-  rental: one(rentals, {
-    fields: [rentalImages.rentalId],
-    references: [rentals.id],
+export const propertyImagesRelations = relations(propertyImages, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyImages.propertyId],
+    references: [properties.id],
   }),
 }));
 
 export const amenitiesRelations = relations(amenities, ({ many }) => ({
-  rentals: many(rentalAmenities),
+  properties: many(propertyAmenities),
 }));
 
-export const rentalAmenitiesRelations = relations(rentalAmenities, ({ one }) => ({
-  rental: one(rentals, {
-    fields: [rentalAmenities.rentalId],
-    references: [rentals.id],
+export const propertyAmenitiesRelations = relations(propertyAmenities, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyAmenities.propertyId],
+    references: [properties.id],
   }),
   amenity: one(amenities, {
-    fields: [rentalAmenities.amenityId],
+    fields: [propertyAmenities.amenityId],
     references: [amenities.id],
   }),
 }));
 
 export const priceHistoryRelations = relations(priceHistory, ({ one }) => ({
-  rental: one(rentals, {
-    fields: [priceHistory.rentalId],
-    references: [rentals.id],
+  property: one(properties, {
+    fields: [priceHistory.propertyId],
+    references: [properties.id],
   }),
 }));
 
 export const scrapeMetadataRelations = relations(scrapeMetadata, ({ one }) => ({
-  rental: one(rentals, {
-    fields: [scrapeMetadata.rentalId],
-    references: [rentals.id],
+  property: one(properties, {
+    fields: [scrapeMetadata.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const duplicateReviews = pgTable('duplicate_reviews', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  propertyAId: uuid('property_a_id').references(() => properties.id, { onDelete: 'cascade' }),
+  propertyBId: uuid('property_b_id').references(() => properties.id, { onDelete: 'cascade' }),
+  rentalData: jsonb('rental_data'),
+  matchedPropertyId: uuid('matched_property_id').references(() => properties.id, {
+    onDelete: 'set null',
+  }),
+  score: decimal('score', { precision: 5, scale: 2 }),
+  scoreBreakdown: jsonb('score_breakdown'),
+  status: text('status').default('pending'),
+  reviewedBy: text('reviewed_by'),
+  decision: text('decision'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+});
+
+export const propertyMergeHistory = pgTable('property_merge_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  masterPropertyId: uuid('master_property_id').references(() => properties.id, {
+    onDelete: 'cascade',
+  }),
+  mergedPropertyId: uuid('merged_property_id'),
+  mergedFields: jsonb('merged_fields'),
+  previousValues: jsonb('previous_values'),
+  mergeReason: text('merge_reason'),
+  mergedAt: timestamp('merged_at', { withTimezone: true }).defaultNow(),
+});
+
+// Relations for new tables
+export const duplicateReviewsRelations = relations(duplicateReviews, ({ one }) => ({
+  propertyA: one(properties, {
+    fields: [duplicateReviews.propertyAId],
+    references: [properties.id],
+  }),
+  propertyB: one(properties, {
+    fields: [duplicateReviews.propertyBId],
+    references: [properties.id],
+  }),
+  matchedProperty: one(properties, {
+    fields: [duplicateReviews.matchedPropertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const propertyMergeHistoryRelations = relations(propertyMergeHistory, ({ one }) => ({
+  masterProperty: one(properties, {
+    fields: [propertyMergeHistory.masterPropertyId],
+    references: [properties.id],
   }),
 }));

@@ -5,7 +5,7 @@ export async function GET() {
   try {
     // Get all confirmed duplicates
     const { data: duplicates, error: fetchError } = await supabase
-      .from('rentals')
+      .from('properties')
       .select('id, title, duplicate_status, duplicate_score')
       .eq('duplicate_status', 'duplicate');
 
@@ -29,7 +29,7 @@ export async function DELETE() {
   try {
     // Delete all confirmed duplicates
     const { error, count } = await supabase
-      .from('rentals')
+      .from('properties')
       .delete()
       .eq('duplicate_status', 'duplicate');
 
@@ -40,7 +40,7 @@ export async function DELETE() {
     return NextResponse.json({
       success: true,
       deleted: count,
-      message: `Successfully deleted ${count} duplicate rentals`,
+      message: `Successfully deleted ${count} duplicate properties`,
     });
   } catch (error) {
     return NextResponse.json(

@@ -2,6 +2,9 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   images: {
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       {
         protocol: 'https',
@@ -26,6 +29,11 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'py5iwgffjd.ufs.sh',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.ufs.sh',
         pathname: '/**',
       },
       {
@@ -56,6 +64,11 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'cdn.yad2.treedis.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.yad2.co.il',
         pathname: '/**',
       },
     ],

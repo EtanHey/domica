@@ -10,6 +10,7 @@ interface ScrapeYad2Params {
 }
 
 interface ScrapeYad2Response {
+  success: boolean;
   listings: number;
   created: number;
   updated: number;
@@ -54,18 +55,17 @@ export function useScrapeYad2() {
       toast({
         title: '✅ סיום סריקה',
         description,
-        className: '!bg-white dark:!bg-gray-950 !border-2 !border-gray-200 dark:!border-gray-800',
       });
 
       if (data.listings > 0) {
-        void queryClient.invalidateQueries({ queryKey: QueryKeys.rentals.all });
+        void queryClient.invalidateQueries({ queryKey: QueryKeys.properties.all });
       }
     },
     onError: (error) => {
       toast({
         title: '❌ שגיאה',
         description: error instanceof Error ? error.message : 'שגיאה בייבוא',
-        className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
+        variant: 'destructive',
       });
     },
   });
@@ -84,16 +84,15 @@ export function useScrapeFacebook() {
       toast({
         title: '✅ הצלחה',
         description: 'פוסטים מפייסבוק יובאו בהצלחה',
-        className: '!bg-white dark:!bg-gray-950 !border-2 !border-gray-200 dark:!border-gray-800',
       });
 
-      void queryClient.invalidateQueries({ queryKey: QueryKeys.rentals.all });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.properties.all });
     },
     onError: (error) => {
       toast({
         title: '❌ שגיאה',
         description: error instanceof Error ? error.message : 'נכשל ייבוא מפייסבוק',
-        className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
+        variant: 'destructive',
       });
     },
   });

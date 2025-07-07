@@ -73,6 +73,24 @@ A Next.js application to visualize rental listings scraped from Yad2 (Israeli re
 - Format check: `npm run format:check`
 - Format fix: `npm run format`
 
+## ⚠️ CRITICAL: shadcn/ui Component Installation
+
+**NEVER use `--yes` flag when installing shadcn components unless:**
+
+1. Explicitly instructed by the user
+2. You've verified that no customizations exist for that component
+
+**Why:** The `--yes` flag will overwrite existing files without prompting, potentially destroying custom modifications to components.
+
+**Safe approach:**
+
+```bash
+# Always use interactive mode (without --yes)
+npx shadcn@latest add <component>
+
+# If component exists, choose 'n' to skip overwriting
+```
+
 ## Pre-Push Checklist
 
 **ALWAYS run these commands before pushing changes:**
@@ -92,6 +110,33 @@ If any of these commands fail, fix the issues before pushing. This ensures:
 - Use Row Level Security (RLS) for data protection
 - Create proper indexes for performance
 - Set up realtime subscriptions for live updates
+- **IMPORTANT**: When manipulating Supabase, always try to use the Supabase MCP tools first
+  - If MCP tools fail with permission errors, provide SQL scripts for manual execution
+  - The MCP tools available include: list_tables, execute_sql, apply_migration, etc.
+
+### 🔴 CRITICAL: Supabase MCP Tool Usage 🔴
+
+**ALWAYS use the correct project ID when using Supabase MCP tools:**
+
+1. **First list organizations**: `mcp__domica-supabase__list_organizations` (no parameters)
+2. **Then list projects**: `mcp__domica-supabase__list_projects` (no parameters)
+3. **Use the correct project ID** from the list_projects response (NOT the one from the URL or environment variables)
+   - Example: The project ID `kxynaapnrvjdwiucfdhz` is different from the URL subdomain `ngzzoxubmkmibuzhlqvt`
+
+**Common MCP tool mistakes to avoid:**
+
+- Using wrong parameter names (e.g., `project_id` vs `id`)
+- Using the Supabase URL subdomain as the project ID
+- Not checking the actual project ID from list_projects first
+- Giving up after first permission error instead of checking project ID
+
+**Correct workflow:**
+
+```
+1. list_organizations() → get org ID
+2. list_projects() → get correct project ID
+3. execute_sql(project_id=<correct_id>, query=...)
+```
 
 ## Scratchpad/AI-DEV Comments
 

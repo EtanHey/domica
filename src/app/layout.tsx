@@ -3,6 +3,7 @@ import { Rubik } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/providers/query-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { Home } from 'lucide-react';
 
 // Use Rubik font which supports Hebrew
 const rubik = Rubik({
@@ -12,7 +13,7 @@ const rubik = Rubik({
 
 export const metadata: Metadata = {
   title: 'Domica - דומיקה',
-  description: 'Real estate platform for finding your perfect rental',
+  description: 'Real estate platform for finding your perfect property',
 };
 
 export default function RootLayout({

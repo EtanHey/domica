@@ -12,7 +12,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { Link, Loader2, AlertCircle } from 'lucide-react';
+import { Link, Loader2 } from 'lucide-react';
 import { useScrapeYad2 } from '@/hooks/use-scraping';
 
 export function Yad2ScraperControls() {
@@ -23,28 +23,18 @@ export function Yad2ScraperControls() {
   const handleScrape = async () => {
     if (!yad2Url) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <span>שגיאה</span>
-          </div>
-        ) as any,
+        title: '❌ שגיאה',
         description: 'נא להזין כתובת URL',
-        className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
+        variant: 'destructive',
       });
       return;
     }
 
     if (!yad2Url.includes('yad2.co.il')) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <span>שגיאה</span>
-          </div>
-        ) as any,
+        title: '❌ שגיאה',
         description: 'כתובת URL לא חוקית',
-        className: '!bg-white dark:!bg-gray-950 !border-2 !border-red-200 dark:!border-red-800',
+        variant: 'destructive',
       });
       return;
     }
@@ -55,8 +45,11 @@ export function Yad2ScraperControls() {
         maxListings: 10,
       },
       {
-        onSuccess: () => {
-          setYad2Url(''); // Clear the input on success
+        onSuccess: (data) => {
+          // Only clear if we actually got successful results
+          if (data?.success && data?.created > 0) {
+            setYad2Url('');
+          }
         },
       }
     );
@@ -82,14 +75,19 @@ export function Yad2ScraperControls() {
 
                 <div className="space-y-2">
                   <div
-                    className="group bg-muted/50 hover:bg-muted/70 cursor-pointer rounded-lg border p-3 transition-all hover:border-green-500/50"
+                    className={`group bg-muted/50 rounded-lg border p-3 transition-all ${
+                      scrapeYad2.isPending
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:bg-muted/70 cursor-pointer hover:border-green-500/50'
+                    }`}
                     onClick={() =>
+                      !scrapeYad2.isPending &&
                       setYad2Url('https://www.yad2.co.il/realestate/rent?city=5000&minRooms=3')
                     }
                   >
                     <div className="mb-2 flex items-center gap-2">
                       <div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
-                      <span className="text-xs font-medium">להשכרה</span>
+                      <span className="text-xs font-medium">חיפוש להשכרה</span>
                     </div>
                     <code className="text-muted-foreground block font-mono text-xs break-all">
                       https://www.yad2.co.il/realestate/rent?city=5000&minRooms=3
@@ -97,14 +95,39 @@ export function Yad2ScraperControls() {
                   </div>
 
                   <div
-                    className="group bg-muted/50 hover:bg-muted/70 cursor-pointer rounded-lg border p-3 transition-all hover:border-blue-500/50"
+                    className={`group bg-muted/50 rounded-lg border p-3 transition-all ${
+                      scrapeYad2.isPending
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:bg-muted/70 cursor-pointer hover:border-purple-500/50'
+                    }`}
                     onClick={() =>
+                      !scrapeYad2.isPending &&
+                      setYad2Url('https://www.yad2.co.il/realestate/item/go77ks4g')
+                    }
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-purple-500"></div>
+                      <span className="text-xs font-medium">מודעה בודדת</span>
+                    </div>
+                    <code className="text-muted-foreground block font-mono text-xs break-all">
+                      https://www.yad2.co.il/realestate/item/go77ks4g
+                    </code>
+                  </div>
+
+                  <div
+                    className={`group bg-muted/50 rounded-lg border p-3 transition-all ${
+                      scrapeYad2.isPending
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:bg-muted/70 cursor-pointer hover:border-blue-500/50'
+                    }`}
+                    onClick={() =>
+                      !scrapeYad2.isPending &&
                       setYad2Url('https://www.yad2.co.il/realestate/forsale?city=1200&minRooms=3')
                     }
                   >
                     <div className="mb-2 flex items-center gap-2">
                       <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>
-                      <span className="text-xs font-medium">למכירה</span>
+                      <span className="text-xs font-medium">חיפוש למכירה</span>
                     </div>
                     <code className="text-muted-foreground block font-mono text-xs break-all">
                       https://www.yad2.co.il/realestate/forsale?city=1200&minRooms=3
@@ -122,6 +145,7 @@ export function Yad2ScraperControls() {
                     placeholder="הכנס כתובת URL של יד 2"
                     value={yad2Url}
                     onChange={(e) => setYad2Url(e.target.value)}
+                    disabled={scrapeYad2.isPending}
                     className="pl-8"
                   />
                 </div>
