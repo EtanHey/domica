@@ -12,10 +12,10 @@ const queryClient = postgres(connectionString);
 export const db = drizzle(queryClient, { schema });
 
 // Type exports for use throughout the app
-export type Rental = typeof schema.rentals.$inferSelect;
-export type NewRental = typeof schema.rentals.$inferInsert;
+export type Property = typeof schema.properties.$inferSelect;
+export type NewProperty = typeof schema.properties.$inferInsert;
 export type Landlord = typeof schema.landlords.$inferSelect;
 export type NewLandlord = typeof schema.landlords.$inferInsert;
-export type RentalImage = typeof schema.rentalImages.$inferSelect;
+export type PropertyImage = typeof schema.propertyImages.$inferSelect;
 export type Amenity = typeof schema.amenities.$inferSelect;
 export type PriceHistory = typeof schema.priceHistory.$inferSelect;

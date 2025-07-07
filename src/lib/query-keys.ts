@@ -2,31 +2,31 @@
 // This ensures type safety and prevents typos across the application
 
 export const QueryKeys = {
-  // Rental queries
-  rentals: {
-    all: ['rentals'] as const,
+  // Property queries
+  properties: {
+    all: ['properties'] as const,
     list: (filters?: { city?: string; minRooms?: number; maxPrice?: number }) =>
-      ['rentals', 'list', filters] as const,
-    detail: (id: string) => ['rentals', 'detail', id] as const,
-    images: (rentalId: string) => ['rentals', 'images', rentalId] as const,
+      ['properties', 'list', filters] as const,
+    detail: (id: string) => ['properties', 'detail', id] as const,
+    images: (propertyId: string) => ['properties', 'images', propertyId] as const,
   },
 
   // Landlord queries
   landlords: {
     all: ['landlords'] as const,
     detail: (id: string) => ['landlords', 'detail', id] as const,
-    rentals: (landlordId: string) => ['landlords', 'rentals', landlordId] as const,
+    properties: (landlordId: string) => ['landlords', 'properties', landlordId] as const,
   },
 
   // Amenities queries
   amenities: {
     all: ['amenities'] as const,
-    byRental: (rentalId: string) => ['amenities', 'rental', rentalId] as const,
+    byProperty: (propertyId: string) => ['amenities', 'property', propertyId] as const,
   },
 
   // Price history queries
   priceHistory: {
-    byRental: (rentalId: string) => ['price-history', 'rental', rentalId] as const,
+    byProperty: (propertyId: string) => ['price-history', 'property', propertyId] as const,
   },
 
   // Scraping queries
@@ -44,20 +44,20 @@ export const QueryKeys = {
 } as const;
 
 // Type helpers for query keys
-export type RentalQueryKey =
-  | typeof QueryKeys.rentals.all
-  | ReturnType<typeof QueryKeys.rentals.list>
-  | ReturnType<typeof QueryKeys.rentals.detail>
-  | ReturnType<typeof QueryKeys.rentals.images>;
+export type PropertyQueryKey =
+  | typeof QueryKeys.properties.all
+  | ReturnType<typeof QueryKeys.properties.list>
+  | ReturnType<typeof QueryKeys.properties.detail>
+  | ReturnType<typeof QueryKeys.properties.images>;
 
 export type LandlordQueryKey =
   | typeof QueryKeys.landlords.all
   | ReturnType<typeof QueryKeys.landlords.detail>
-  | ReturnType<typeof QueryKeys.landlords.rentals>;
+  | ReturnType<typeof QueryKeys.landlords.properties>;
 
 export type AmenityQueryKey =
   | typeof QueryKeys.amenities.all
-  | ReturnType<typeof QueryKeys.amenities.byRental>;
+  | ReturnType<typeof QueryKeys.amenities.byProperty>;
 
 export type ScrapingQueryKey =
   | ReturnType<typeof QueryKeys.scraping.yad2>
@@ -70,10 +70,10 @@ export type SearchQueryKey =
 
 // Mutation keys for mutations that need to be tracked
 export const MutationKeys = {
-  // Rental mutations
-  createRental: ['create-rental'] as const,
-  updateRental: ['update-rental'] as const,
-  deleteRental: ['delete-rental'] as const,
+  // Property mutations
+  createProperty: ['create-property'] as const,
+  updateProperty: ['update-property'] as const,
+  deleteProperty: ['delete-property'] as const,
 
   // Scraping mutations
   scrapeYad2: ['scrape-yad2'] as const,

@@ -1,13 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
-
-const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY || '';
-const FIRECRAWL_API_URL = 'https://api.firecrawl.dev/v1';
+import { DuplicateDetectionService } from './duplicate-detection';
+import { PropertyInput } from './duplicate-detection/types';
+import { utapi } from '@/server/uploadthing';
+import { Yad2ScraperFirecrawl as PlaywrightYad2Scraper } from './scrapers/yad2-scraper-firecrawl';
+import type { ScrapedListing } from './scrapers/base-scraper';
 
 // Initialize Supabase client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// Initialize duplicate detection service
+const duplicateDetector = new DuplicateDetectionService(supabase as any);
 
 interface Yad2Listing {
   yad2_id: string;
@@ -25,470 +30,212 @@ interface Yad2Listing {
   contact_name?: string;
   phone_number?: string;
   listing_url: string;
+  listing_type: 'rent' | 'sale';
   updated_at: string;
 }
 
 export class Yad2Scraper {
-  private apiKey: string;
+  private scraper: PlaywrightYad2Scraper;
+  private initialized = false;
 
-  constructor(apiKey?: string) {
-    this.apiKey = apiKey || FIRECRAWL_API_KEY;
-    if (!this.apiKey) {
-      throw new Error('Firecrawl API key is required');
+  constructor() {
+    this.scraper = new PlaywrightYad2Scraper();
+  }
+
+  private async ensureInitialized() {
+    if (!this.initialized) {
+      await this.scraper.initialize();
+      this.initialized = true;
+    }
+  }
+
+  async cleanup() {
+    if (this.initialized) {
+      await this.scraper.close();
+      this.initialized = false;
     }
   }
 
   /**
-   * Extract Yad2 listing ID from URL or generate one
+   * Normalize URL by removing query parameters and fragments
    */
-  private extractYad2Id(url: string, title: string): string {
-    // Try to extract ID from URL
-    const idMatch = url.match(/item\/([a-zA-Z0-9]+)/);
-    if (idMatch) {
-      return idMatch[1];
-    }
-
-    // Generate ID from title and timestamp
-    const hash = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '')
-      .substring(0, 8);
-    return `yad2_${hash}_${Date.now()}`;
-  }
-
-  /**
-   * Parse price from Hebrew text
-   */
-  private parsePrice(priceText: string): { price: number; currency: string } {
-    // Remove commas and extract numbers
-    const cleanText = priceText.replace(/,/g, '');
-
-    // Since we're scraping rentals, prioritize rental price patterns first
-    const rentalPatterns = [
-      /לחודש[\s:]*₪?\s*([\d,]+)/, // לחודש: 5,000
-      /שכירות[\s:]*₪?\s*([\d,]+)/, // שכירות: 5,000
-      /₪\s*(\d{1,5})\s*לחודש/, // ₪ 5000 לחודש
-      /(\d{1,5})\s*₪\s*לחודש/, // 5000 ₪ לחודש
-      /₪\s*(\d{1,5})(?:\s|$)/, // ₪ 5000 (standalone rental price)
-      /(\d{1,5})\s*₪(?:\s|$)/, // 5000 ₪ (standalone rental price)
-    ];
-
-    for (const pattern of rentalPatterns) {
-      const match = cleanText.match(pattern);
-      if (match) {
-        const price = parseFloat(match[1].replace(/,/g, ''));
-        if (price >= 1000 && price <= 50000) {
-          // Reasonable rental range
-          return { price, currency: 'ILS' };
-        }
-      }
-    }
-
-    // If no rental pattern found, look for any reasonable price
-    const generalPatterns = [
-      /₪\s*([\d,]+(?:\.\d+)?(?:,\d{3})*)/, // ₪ 1,500
-      /([\d,]+(?:\.\d+)?(?:,\d{3})*)\s*₪/, // 1,500 ₪
-      /(\d{1,5})/, // Any 1-5 digit number (likely rental)
-    ];
-
-    for (const pattern of generalPatterns) {
-      const match = cleanText.match(pattern);
-      if (match) {
-        const priceStr = match[1].replace(/,/g, '');
-        const price = parseFloat(priceStr);
-        // For rentals, cap at reasonable monthly rent
-        if (price >= 1000 && price <= 50000) {
-          return { price, currency: 'ILS' };
-        }
-      }
-    }
-
-    return { price: 0, currency: 'ILS' };
-  }
-
-  /**
-   * Extract room count from Hebrew text
-   */
-  private extractRooms(text: string): number {
-    // Look for patterns like "3 חדרים" or "3.5 חדרים"
-    const roomMatch = text.match(/(\d+(?:\.\d+)?)\s*חדרים/);
-    if (roomMatch) {
-      return parseFloat(roomMatch[1]);
-    }
-    return 0;
-  }
-
-  /**
-   * Extract size in square meters
-   */
-  private extractSize(text: string): number | null {
-    // Look for patterns like "80 מ״ר" or "80 מ"ר"
-    const sizeMatch = text.match(/(\d+)\s*מ[״"״]ר/);
-    if (sizeMatch) {
-      return parseInt(sizeMatch[1]);
-    }
-    return null;
-  }
-
-  /**
-   * Extract floor number
-   */
-  private extractFloor(text: string): number | null {
-    // Look for patterns like "קומה 3" or "קומה 3 מתוך 5"
-    const floorMatch = text.match(/קומה\s*(\d+)/);
-    if (floorMatch) {
-      return parseInt(floorMatch[1]);
-    }
-    return null;
-  }
-
-  /**
-   * Detect amenities from Hebrew text
-   */
-  private detectAmenities(text: string): string[] {
-    const amenities: string[] = [];
-    const amenityMap = {
-      חניה: ['חניה', 'חנייה'],
-      מעלית: ['מעלית'],
-      'ממ״ד': ['ממד', 'ממ"ד', 'מרחב מוגן'],
-      מרפסת: ['מרפסת'],
-      מזגן: ['מזגן', 'מיזוג'],
-      משופצת: ['משופצת', 'שיפוץ'],
-      מחסן: ['מחסן'],
-      'גישה לנכים': ['גישה לנכים', 'נגיש'],
-      'מרפסת שמש': ['מרפסת שמש'],
-      'יחידת הורים': ['יחידת הורים'],
-      'משופצת מהיסוד': ['משופצת מהיסוד'],
-      'כניסה פרטית': ['כניסה פרטית'],
-    };
-
-    for (const [amenity, keywords] of Object.entries(amenityMap)) {
-      if (keywords.some((keyword) => text.includes(keyword))) {
-        amenities.push(amenity);
-      }
-    }
-
-    return amenities;
-  }
-
-  /**
-   * Parse a single listing from Firecrawl content
-   */
-  private parseListing(
-    content: {
-      markdown?: string;
-      content?: string;
-      html?: string;
-      metadata?: Record<string, unknown>;
-      screenshot?: string;
-    },
-    url: string
-  ): Yad2Listing | null {
+  private normalizeUrl(url: string): string {
     try {
-      // Firecrawl returns the scraped content directly
-      const text = content.markdown || content.content || '';
-      const html = content.html || '';
-      const metadata = content.metadata || {};
+      const urlObj = new URL(url);
+      // Keep only the base URL without query params for consistent duplicate detection
+      return `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+    } catch {
+      // If URL parsing fails, return as-is
+      return url;
+    }
+  }
 
-      // Extract title
-      const title = metadata.title || text.substring(0, 100);
+  /**
+   * Check if URL is a single listing or search results
+   */
+  private isListingUrl(url: string): boolean {
+    return url.includes('/realestate/item/') || url.includes('/item/');
+  }
 
-      // Extract price
-      const { price, currency } = this.parsePrice(text);
+  /**
+   * Convert scraped listing to Yad2Listing format
+   */
+  private convertToYad2Listing(scraped: ScrapedListing): Yad2Listing {
+    return {
+      yad2_id: scraped.id,
+      title: scraped.title,
+      price: scraped.price,
+      currency: '₪',
+      location: scraped.city || scraped.location,
+      rooms: scraped.rooms,
+      floor: scraped.floor,
+      size_sqm: scraped.size_sqm,
+      description: scraped.description,
+      property_type: scraped.property_type,
+      image_urls: scraped.image_urls,
+      amenities: scraped.amenities,
+      contact_name: scraped.contact_name,
+      phone_number: scraped.phone_number,
+      listing_url: scraped.listing_url,
+      listing_type: scraped.listing_type,
+      updated_at: new Date().toISOString(),
+    };
+  }
 
-      // Extract other details
-      const rooms = this.extractRooms(text);
-      const size = this.extractSize(text);
-      const floor = this.extractFloor(text);
-      const amenities = this.detectAmenities(text);
+  /**
+   * Scrape a single Yad2 listing
+   */
+  async scrapeSingleListing(url: string): Promise<Yad2Listing | null> {
+    try {
+      console.log('Scraping single Yad2 listing:', url);
+      await this.ensureInitialized();
 
-      // Extract location (simplified - would need more sophisticated parsing)
-      let location = 'Unknown';
-      const locationMatch = text.match(/([א-ת\s]+),\s*([א-ת\s]+)/);
-      if (locationMatch) {
-        location = `${locationMatch[1]}, ${locationMatch[2]}`;
+      const listing = await this.scraper.scrapeSingleListing(url);
+      if (!listing) {
+        return null;
       }
 
-      // Extract images from content
-      const imageUrls: string[] = [];
-
-      // Look for image URLs in the HTML/markdown
-      const imgPattern = /<img[^>]+src=["']([^"']+)["']/gi;
-      const urlPattern = /https?:\/\/[^\s<>"{}|\\^`\[\]]+\.(?:jpg|jpeg|png|gif|webp)/gi;
-
-      // Extract from HTML if available
-      if (html) {
-        let match;
-        while ((match = imgPattern.exec(html)) !== null) {
-          if (match[1] && (match[1].includes('yad2') || match[1].includes('images'))) {
-            imageUrls.push(match[1]);
-          }
-        }
-      }
-
-      // Also look for direct image URLs in text
-      const textImages = text.match(urlPattern) || [];
-      imageUrls.push(
-        ...textImages.filter(
-          (url: string) => url.includes('yad2') || url.includes('images') || url.includes('cdn')
-        )
-      );
-
-      // Add screenshot as fallback if no images found
-      if (imageUrls.length === 0 && content.screenshot) {
-        imageUrls.push(content.screenshot);
-      }
-
-      // Remove duplicates and log found images
-      const uniqueImages = [...new Set(imageUrls)];
-      if (uniqueImages.length > 0) {
-        console.log(`Found ${uniqueImages.length} images for listing`);
-      }
-
-      // Create listing object
-      const listing: Yad2Listing = {
-        yad2_id: this.extractYad2Id(url, title.toString()),
-        title: title.toString(),
-        price,
-        currency,
-        location,
-        rooms,
-        floor,
-        size_sqm: size,
-        description: text.substring(0, 1000),
-        property_type: 'apartment', // Default, would need better detection
-        image_urls: uniqueImages,
-        amenities,
-        listing_url: url,
-        updated_at: new Date().toISOString(),
-      };
-
-      return listing;
+      return this.convertToYad2Listing(listing);
     } catch (error) {
-      console.error('Error parsing listing:', error);
+      console.error('Error scraping single listing:', error);
       return null;
+    } finally {
+      // Cleanup after single listing scrape
+      await this.cleanup();
     }
   }
 
   /**
    * Scrape Yad2 search results page
    */
-  async scrapeYad2(url: string, maxListings: number = 10): Promise<Yad2Listing[]> {
+  async scrapeSearchResults(url: string, maxListings: number = 10): Promise<Yad2Listing[]> {
     try {
       console.log('Scraping Yad2 URL:', url);
+      await this.ensureInitialized();
 
-      // Use Firecrawl to scrape the search results page
-      const response = await fetch(`${FIRECRAWL_API_URL}/scrape`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url,
-          formats: ['markdown', 'html'],
-          timeout: 60000, // Increase timeout to 60 seconds
-          waitFor: 2000, // Reduce initial wait
-          onlyMainContent: true, // Focus on main content only
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8',
-          },
-        }),
-      });
+      const scrapedListings = await this.scraper.scrapeSearchResults(url, maxListings);
+      console.log(`Found ${scrapedListings.length} listings`);
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Firecrawl API error: ${error}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success || !result.data) {
-        throw new Error('No data returned from Firecrawl');
-      }
-
-      // Firecrawl returns data directly, not nested
-      const content = result.data;
-      const listings: Yad2Listing[] = [];
-
-      // Parse Yad2 search results page
-      console.log('Parsing Yad2 content...');
-
-      // Try to extract multiple listings from the page
-      const markdown = content.markdown || '';
-      const html = content.html || '';
-
-      // Split content into potential listing blocks
-      // Yad2 listings typically have consistent patterns
-      const listingBlocks = this.extractListingBlocks(markdown, html);
-
-      for (const block of listingBlocks.slice(0, maxListings)) {
-        const listing = this.parseListingBlock(block, url);
-        if (listing) {
-          listings.push(listing);
-        }
-      }
-
-      // If no individual listings found, try to parse as a single listing
-      if (listings.length === 0) {
-        console.log('No individual listings found, parsing as single listing...');
-        const listing = this.parseListing(content, url);
-        if (listing) {
-          listings.push(listing);
-        }
-      }
-
-      console.log(`Found ${listings.length} listings`);
-      return listings;
+      return scrapedListings.map(listing => this.convertToYad2Listing(listing));
     } catch (error) {
       console.error('Error scraping Yad2:', error);
       throw error;
+    } finally {
+      // Cleanup after search results scrape
+      await this.cleanup();
     }
   }
 
   /**
-   * Extract listing blocks from page content
+   * Scrape Yad2 - either a single listing or search results page
    */
-  private extractListingBlocks(markdown: string, html: string = ''): string[] {
-    const blocks: string[] = [];
-
-    // Try to split by common patterns in Yad2 listings
-    // Look for price patterns as delimiters
-    const pricePattern = /₪[\s\d,]+|[\d,]+\s*₪/g;
-    const parts = markdown.split(pricePattern);
-
-    // Each part might be a listing
-    for (let i = 0; i < parts.length - 1; i++) {
-      const block = parts[i] + (markdown.match(pricePattern)?.[i] || '');
-      if (block.length > 50) {
-        // Minimum content for a listing
-        blocks.push(block);
-      }
+  async scrapeYad2(url: string, maxListings: number = 10): Promise<Yad2Listing[]> {
+    // Check if this is a single listing URL
+    if (this.isListingUrl(url)) {
+      const listing = await this.scrapeSingleListing(url);
+      return listing ? [listing] : [];
     }
 
-    // If no blocks found, try line-based splitting
-    if (blocks.length === 0) {
-      const lines = markdown.split('\n');
-      let currentBlock = '';
-
-      for (const line of lines) {
-        currentBlock += line + '\n';
-
-        // If we find a price or separator, consider it end of block
-        if (pricePattern.test(line) || line.includes('---') || line.trim() === '') {
-          if (currentBlock.length > 100) {
-            blocks.push(currentBlock);
-            currentBlock = '';
-          }
-        }
-      }
-    }
-
-    return blocks;
+    // Otherwise, scrape search results
+    return this.scrapeSearchResults(url, maxListings);
   }
 
   /**
-   * Parse a single listing block
+   * Save listing to Supabase with duplicate detection
    */
-  private parseListingBlock(block: string, baseUrl: string): Yad2Listing | null {
+  async saveListing(listing: Yad2Listing): Promise<'created' | 'updated' | 'duplicate' | 'error'> {
     try {
-      // Extract price
-      const { price, currency } = this.parsePrice(block);
-      if (!price) return null; // No price means probably not a listing
-
-      // Extract rooms
-      const rooms = this.extractRooms(block);
-      const size = this.extractSize(block);
-      const floor = this.extractFloor(block);
-      const amenities = this.detectAmenities(block);
-
-      // Extract location - look for neighborhood/city patterns
-      let location = 'Unknown';
-      const locationPatterns = [
-        /שכונת\s+([א-ת\s]+)/,
-        /רחוב\s+([א-ת\s]+)/,
-        /([א-ת\s]+),\s*([א-ת\s]+)/,
-      ];
-
-      for (const pattern of locationPatterns) {
-        const match = block.match(pattern);
-        if (match) {
-          location = match[0];
-          break;
-        }
-      }
-
-      // Generate a title from the content
-      const title = `${rooms || '?'} חדרים ב${location} - ${price} ₪`;
-
-      // Try to extract images from the block
-      const blockImages: string[] = [];
-      const imgUrlPattern = /https?:\/\/[^\s<>"{}|\\^`\[\]]+\.(?:jpg|jpeg|png|gif|webp)/gi;
-      const foundUrls = block.match(imgUrlPattern) || [];
-      blockImages.push(
-        ...foundUrls.filter(
-          (url) => url.includes('yad2') || url.includes('images') || url.includes('cdn')
-        )
-      );
-
-      return {
-        yad2_id: this.extractYad2Id(baseUrl + Date.now(), title),
-        title,
-        price,
-        currency,
-        location,
-        rooms: rooms || 0,
-        floor,
-        size_sqm: size,
-        description: block.substring(0, 500),
-        property_type: 'apartment',
-        image_urls: blockImages,
-        amenities,
-        listing_url: baseUrl,
-        updated_at: new Date().toISOString(),
+      // Extract location coordinates if possible (for now, using a placeholder)
+      // In production, you'd use a geocoding service
+      const propertyInput: PropertyInput = {
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        currency: listing.currency,
+        address: listing.location,
+        city: listing.location.includes(',')
+          ? listing.location.split(',')[1].trim()
+          : listing.location,
+        phone: listing.phone_number,
+        contactName: listing.contact_name,
+        images: listing.image_urls,
+        amenities: listing.amenities,
+        sourcePlatform: 'yad2',
+        sourceId: listing.yad2_id,
+        sourceUrl: listing.listing_url,
+        metadata: {
+          rooms: listing.rooms,
+          floor: listing.floor,
+          size_sqm: listing.size_sqm,
+          property_type: listing.property_type,
+        },
       };
-    } catch (error) {
-      console.error('Error parsing listing block:', error);
-      return null;
-    }
-  }
 
-  /**
-   * Save listing to Supabase
-   */
-  async saveListing(listing: Yad2Listing): Promise<void> {
-    try {
-      // Check if listing already exists
-      const { data: existing } = await supabase
-        .from('rentals')
-        .select('id')
-        .eq('facebook_id', listing.yad2_id)
-        .single();
+      // Check for duplicates
+      const duplicateResult = await duplicateDetector.checkForDuplicate(propertyInput);
 
-      if (existing) {
-        console.log(`Listing ${listing.yad2_id} already exists, updating...`);
+      if (duplicateResult.isDuplicate && duplicateResult.action === 'merge') {
+        console.log(`Duplicate found for "${listing.title}", merging with existing listing...`);
+        await duplicateDetector.mergeProperties(duplicateResult.matchedProperty!.id, propertyInput);
+        return 'duplicate';
+      }
 
-        // Update existing listing
+      if (duplicateResult.action === 'update') {
+        console.log(`Exact match found for "${listing.title}", updating...`);
+        // Update existing listing with same source - use properties table
         const { error: updateError } = await supabase
-          .from('rentals')
+          .from('properties')
           .update({
             title: listing.title,
             description: listing.description,
             price_per_month: listing.price,
             currency: listing.currency,
             location_text: listing.location,
-            bedrooms: Math.floor(listing.rooms - 1), // Israeli convention: rooms include living room
+            bedrooms: Math.floor(listing.rooms - 1),
             property_type: listing.property_type,
+            last_seen_at: new Date().toISOString(),
           })
-          .eq('facebook_id', listing.yad2_id);
+          .eq('source_id', listing.yad2_id)
+          .eq('source_platform', 'yad2');
 
-        if (updateError) throw updateError;
-      } else {
+        if (updateError) {
+          console.error('Error updating listing:', updateError);
+          throw updateError;
+        }
+        return 'updated';
+      }
+
+      if (duplicateResult.action === 'review') {
+        console.log(
+          `Potential duplicate for "${listing.title}" queued for review (score: ${duplicateResult.score})`
+        );
+      }
+
+      // Only create new listing if not a duplicate
+      if (duplicateResult.action === 'create' || duplicateResult.action === 'review') {
         // Insert new listing
-        const { data: rental, error: insertError } = await supabase
-          .from('rentals')
+        const { data: property, error: insertError } = await supabase
+          .from('properties')
           .insert({
             facebook_id: listing.yad2_id, // Using facebook_id field for any external ID
             title: listing.title,
@@ -499,33 +246,101 @@ export class Yad2Scraper {
             bedrooms: Math.floor(listing.rooms - 1),
             property_type: listing.property_type,
             is_active: true,
+            listing_type: listing.listing_type,
+            duplicate_status: duplicateResult.action === 'review' ? 'review' : 'unique',
+            source_platform: 'yad2',
+            source_id: listing.yad2_id,
+            // Only store source_url if it's an actual listing URL, not a search URL
+            source_url: listing.listing_url.includes('/item/')
+              ? this.normalizeUrl(listing.listing_url)
+              : null,
           })
           .select()
           .single();
 
         if (insertError) throw insertError;
 
-        // Insert images
-        if (rental) {
-          const imagesToInsert =
-            listing.image_urls.length > 0
-              ? listing.image_urls
-              : ['https://py5iwgffjd.ufs.sh/f/ErznS8cNMHlPwNeWJbGFASWOq8cpgZKI6N2mDBoGVLrsvlfC']; // Fallback
+        // Upload images to UploadThing first, then save references
+        if (property && listing.image_urls.length > 0) {
+          try {
+            // Upload each image to UploadThing
+            const uploadPromises = listing.image_urls.slice(0, 5).map(async (imageUrl, index) => {
+              try {
+                console.log(
+                  `Uploading image ${index + 1}/${listing.image_urls.length} to UploadThing...`
+                );
 
-          const imageInserts = imagesToInsert.slice(0, 5).map((url, index) => ({
-            rental_id: rental.id,
-            image_url: url,
-            image_order: index,
-            is_primary: index === 0,
-          }));
+                // Fetch the image from Yad2
+                const response = await fetch(imageUrl);
+                if (!response.ok) {
+                  console.warn(`Failed to fetch image from ${imageUrl}: ${response.statusText}`);
+                  throw new Error(`Failed to fetch image: ${response.statusText}`);
+                }
 
-          const { error: imageError } = await supabase.from('rental_images').insert(imageInserts);
+                const blob = await response.blob();
+                const buffer = Buffer.from(await blob.arrayBuffer());
+                const filename = `property-${property.id}-${index}-${Date.now()}.jpg`;
 
-          if (imageError) throw imageError;
+                // Create a File object from the buffer
+                const file = new File([buffer], filename, { type: 'image/jpeg' });
+
+                // Upload to UploadThing
+                const uploadResult = await utapi.uploadFiles(file);
+
+                // Check if upload was successful
+                if ('data' in uploadResult && uploadResult.data) {
+                  // Use the new ufsUrl property instead of deprecated url
+                  const uploadedUrl = uploadResult.data.ufsUrl || (uploadResult.data as any).url;
+
+                  if (uploadedUrl) {
+                    console.log(`✅ Successfully uploaded image ${index + 1} to: ${uploadedUrl}`);
+                    return {
+                      property_id: property.id,
+                      image_url: uploadedUrl,
+                      image_order: index,
+                      is_primary: index === 0,
+                    };
+                  }
+                }
+
+                // Handle error case
+                const errorMessage =
+                  'error' in uploadResult ? (uploadResult as any).error : 'Unknown error';
+                console.warn(
+                  `Failed to upload image ${index + 1}: ${errorMessage}. Using original URL as fallback.`
+                );
+                return null;
+              } catch (uploadError) {
+                console.warn(
+                  `Error uploading image ${index + 1}:`,
+                  uploadError,
+                  'Using original URL as fallback.'
+                );
+                return null;
+              }
+            });
+
+            const uploadResults = await Promise.all(uploadPromises);
+            const successfulUploads = uploadResults.filter((result) => result !== null);
+
+            if (successfulUploads.length > 0) {
+              const { error: imageError } = await supabase
+                .from('property_images')
+                .insert(successfulUploads);
+
+              if (imageError) {
+                console.error('Error saving image references:', imageError);
+              } else {
+                console.log(`✅ Saved ${successfulUploads.length} images to database`);
+              }
+            }
+          } catch (error) {
+            console.error('Error in image upload process:', error);
+          }
         }
 
         // Insert amenities
-        if (rental && listing.amenities.length > 0) {
+        if (property && listing.amenities.length > 0) {
           // Get amenity IDs
           const { data: amenityData } = await supabase.from('amenities').select('id, name');
 
@@ -535,13 +350,13 @@ export class Yad2Scraper {
             const amenityInserts = listing.amenities
               .filter((name) => amenityMap.has(name))
               .map((name) => ({
-                rental_id: rental.id,
+                property_id: property.id,
                 amenity_id: amenityMap.get(name)!,
               }));
 
             if (amenityInserts.length > 0) {
               const { error: amenityError } = await supabase
-                .from('rental_amenities')
+                .from('property_amenities')
                 .insert(amenityInserts);
 
               if (amenityError) throw amenityError;
@@ -550,9 +365,9 @@ export class Yad2Scraper {
         }
 
         // Insert scrape metadata
-        if (rental) {
+        if (property) {
           const { error: metadataError } = await supabase.from('scrape_metadata').insert({
-            rental_id: rental.id,
+            property_id: property.id,
             source_url: listing.listing_url,
             source_type: 'yad2',
             source_id: listing.yad2_id,
@@ -564,6 +379,7 @@ export class Yad2Scraper {
       }
 
       console.log(`Successfully saved listing: ${listing.title}`);
+      return 'created';
     } catch (error) {
       console.error('Error saving listing:', error);
       throw error;
@@ -575,16 +391,22 @@ export class Yad2Scraper {
    */
   async scrapeAndSave(
     url: string,
-    maxListings: number = 10
+    maxListings: number = 50
   ): Promise<{
     success: boolean;
     listings: number;
+    created: number;
+    updated: number;
+    duplicates: number;
     message: string;
     errors?: string[];
   }> {
     try {
       const listings = await this.scrapeYad2(url, maxListings);
       let savedCount = 0;
+      let createdCount = 0;
+      let updatedCount = 0;
+      let duplicateCount = 0;
       const errors: string[] = [];
 
       for (const listing of listings) {
@@ -594,11 +416,33 @@ export class Yad2Scraper {
             console.warn(`Price too large for listing ${listing.title}: ${listing.price}`);
             listing.price = 0; // Set to 0 to indicate price needs review
           }
-          
-          await this.saveListing(listing);
-          savedCount++;
+
+          const result = await this.saveListing(listing);
+
+          switch (result) {
+            case 'created':
+              createdCount++;
+              savedCount++;
+              break;
+            case 'updated':
+              updatedCount++;
+              savedCount++;
+              break;
+            case 'duplicate':
+              duplicateCount++;
+              break;
+          }
         } catch (error) {
-          const errorMsg = `Failed to save "${listing.title}": ${error instanceof Error ? error.message : 'Unknown error'}`;
+          // Better error logging
+          let errorMsg = `Failed to save "${listing.title}": `;
+          if (error instanceof Error) {
+            errorMsg += error.message;
+            // Log the full error object for debugging
+            console.error('Full error:', error);
+          } else {
+            errorMsg += 'Unknown error';
+            console.error('Error object:', error);
+          }
           console.error(errorMsg);
           errors.push(errorMsg);
         }
@@ -607,13 +451,19 @@ export class Yad2Scraper {
       return {
         success: savedCount > 0,
         listings: savedCount,
-        message: `Successfully scraped ${savedCount} out of ${listings.length} listings from Yad2`,
+        created: createdCount,
+        updated: updatedCount,
+        duplicates: duplicateCount,
+        message: `Successfully processed ${listings.length} listings from Yad2`,
         errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error) {
       return {
         success: false,
         listings: 0,
+        created: 0,
+        updated: 0,
+        duplicates: 0,
         message: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
