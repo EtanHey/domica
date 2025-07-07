@@ -44,9 +44,12 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
     : ['https://utfs.io/f/ErznS8cNMHlPwNeWJbGFASWOq8cpgZKI6N2mDBoGVLrsvlfC'];
 
   const formatPrice = (price: string) => {
+    // Convert ₪ symbol to ILS code for Intl.NumberFormat
+    const currencyCode = property.currency === '₪' ? 'ILS' : (property.currency || 'ILS');
+    
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
-      currency: property.currency || 'ILS',
+      currency: currencyCode,
     }).format(parseFloat(price));
   };
 
@@ -63,9 +66,9 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
   };
 
   return (
-    <div className="group bg-card relative overflow-hidden rounded-lg shadow-sm transition-shadow hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-lg bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800 dark:border dark:border-gray-700">
       <Link href={`/property/${property.id}`}>
-        <div className="relative h-48 w-full overflow-hidden bg-gray-100">
+        <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
           {/* Main Image */}
           <Image
             src={finalImageUrls[currentImageIndex] || '/placeholder-rental.jpg'}
@@ -136,17 +139,17 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
       <div className="p-4">
         <h3 className="mb-2 line-clamp-2 text-lg font-semibold">{property.title}</h3>
 
-        <p className="text-primary mb-2 text-2xl font-bold">
+        <p className="mb-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
           {formatPrice(property.pricePerMonth)}
           {property.listingType !== 'sale' && '/חודש'}
         </p>
 
-        <div className="text-muted-foreground mb-2 flex items-center text-sm">
+        <div className="mb-2 flex items-center text-sm text-gray-600 dark:text-gray-400">
           <MapPin className="mr-1 h-4 w-4" />
           <span className="line-clamp-1">{property.locationText}</span>
         </div>
 
-        <div className="text-muted-foreground mb-4 flex items-center gap-4 text-sm">
+        <div className="mb-4 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
           {property.bedrooms && (
             <div className="flex items-center">
               <Bed className="mr-1 h-4 w-4" />

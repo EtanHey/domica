@@ -142,6 +142,23 @@ If any of these commands fail, fix the issues before pushing. This ensures:
 
 Use `// <scratchpad>` or `// AI-DEV:` for important implementation notes that other agents might need.
 
+# SCRATCHPAD FOR COMPLEX TASKS:
+
+A file called claude.scratchpad.md exists at the repository root for tracking complex operations
+This file is git-ignored and should be used for:
+Tracking multiple related changes (like bulk replacements)
+Creating audit trails for complex operations
+Storing temporary notes that need to persist across messages
+Planning multi-step operations before execution
+The scratchpad should be cleared after each task is complete
+Always check if the scratchpad exists before writing to it (use Read first)
+If the scratchpad file does not exist, you may create it
+This is particularly useful for tasks like:
+Bulk find/replace operations
+Multi-file refactoring
+Tracking test cases or validation steps
+Storing intermediate results during debugging
+
 ## Development Notes
 
 - Focus on rental listing visualization

@@ -50,9 +50,12 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
   }, [property.id, property.duplicate_status, masterProperty]);
 
   const formatPrice = (price: number) => {
+    // Convert ₪ symbol to ILS code for Intl.NumberFormat
+    const currencyCode = property.currency === '₪' ? 'ILS' : (property.currency || 'ILS');
+    
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
-      currency: property.currency || 'ILS',
+      currency: currencyCode,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(price);

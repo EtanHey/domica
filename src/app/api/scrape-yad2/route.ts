@@ -15,13 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Please provide a valid Yad2 URL' }, { status: 400 });
     }
 
-    // Check if API key exists
-    if (!process.env.FIRECRAWL_API_KEY) {
-      return NextResponse.json({ error: 'Firecrawl API key not configured' }, { status: 500 });
-    }
-
-    // Use real scraper
-    const scraper = new Yad2Scraper(process.env.FIRECRAWL_API_KEY);
+    // Use Playwright-based scraper with enhanced stealth mode
+    const scraper = new Yad2Scraper();
     const result = await scraper.scrapeAndSave(url, maxListings);
 
     return NextResponse.json(result);
@@ -41,7 +36,6 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     available: true,
-    service: 'Yad2 Scraper',
-    requiresApiKey: !process.env.FIRECRAWL_API_KEY,
+    service: 'Yad2 Scraper (Firecrawl)',
   });
 }

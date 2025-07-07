@@ -35,14 +35,17 @@ export function PropertyCard({ property }: PropertyCardProps) {
     'https://utfs.io/f/ErznS8cNMHlPwNeWJbGFASWOq8cpgZKI6N2mDBoGVLrsvlfC';
 
   const formatPrice = (price: string) => {
+    // Convert ₪ symbol to ILS code for Intl.NumberFormat
+    const currencyCode = property.currency === '₪' ? 'ILS' : (property.currency || 'ILS');
+    
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
-      currency: property.currency || 'ILS',
+      currency: currencyCode,
     }).format(parseFloat(price));
   };
 
   return (
-    <div className="bg-card overflow-hidden rounded-lg shadow-sm transition-shadow hover:shadow-md">
+    <div className="overflow-hidden rounded-lg bg-white shadow-sm transition-all hover:shadow-md dark:bg-gray-800 dark:border dark:border-gray-700">
       <Link href={`/property/${property.id}`}>
         <div className="relative h-48 w-full">
           <Image
@@ -68,17 +71,17 @@ export function PropertyCard({ property }: PropertyCardProps) {
       <div className="p-4">
         <h3 className="mb-2 line-clamp-2 text-lg font-semibold">{property.title}</h3>
 
-        <p className="text-primary mb-2 text-2xl font-bold">
+        <p className="mb-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
           {formatPrice(property.pricePerMonth)}
           {property.listingType !== 'sale' && '/חודש'}
         </p>
 
-        <div className="text-muted-foreground mb-2 flex items-center text-sm">
+        <div className="mb-2 flex items-center text-sm text-gray-600 dark:text-gray-400">
           <MapPin className="mr-1 h-4 w-4" />
           <span className="line-clamp-1">{property.locationText || ''}</span>
         </div>
 
-        <div className="text-muted-foreground mb-4 flex items-center gap-4 text-sm">
+        <div className="mb-4 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
           {property.bedrooms && (
             <div className="flex items-center">
               <Bed className="mr-1 h-4 w-4" />

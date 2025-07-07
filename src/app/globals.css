@@ -50,19 +50,21 @@
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
   font-family: var(--font-sans);
 }
 
 /* Dialog/Modal fixes for proper backgrounds */
 [role='dialog'] {
-  background-color: var(--background);
+  @apply bg-white dark:bg-gray-800;
 }
 
 /* Fix for comparison rows highlight */
 .bg-yellow-50 {
   background-color: rgb(254 252 232);
+}
+
+.dark .bg-yellow-50 {
+  background-color: rgb(66 56 40);
 }
 
 /* Ensure proper backgrounds */
