@@ -8,6 +8,14 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const router = useRouter();
 
+  // Check if we're on the home page
+  const isHomePage = pathname === '/';
+
+  // If on home page, just render children without tabs
+  if (isHomePage) {
+    return <>{children}</>;
+  }
+
   // Extract tab from pathname
   const pathParts = pathname.split('/').filter(Boolean);
   const currentTab =

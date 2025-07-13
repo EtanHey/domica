@@ -166,9 +166,24 @@ Storing intermediate results during debugging
 - Implement filtering and search capabilities
 - Consider implementing map view for rentals
 - Commit often to keep changes minimal and incremental
-- Use Context7 MCP tool for accessing library documentation
+- **IMPORTANT**: Use Context7 MCP tool for external API/package docs, check web if not available
 - Check browser tools (takeScreenshot) after making client-side changes
 
 ## Cleanup Guidelines
 
 - If you create any temporary new files, scripts, or helper files for iteration, clean up these files by removing them at the end of the task
+
+## Supabase Manipulation Notes
+
+- To manipulate supabase, always use supabase mcp
+
+### 🔴 CRITICAL: Database Data Management 🔴
+
+**NEVER clear the `amenities` table when clearing database data:**
+
+- The `amenities` table contains essential reference data needed for the application to function
+- When clearing database data, always exclude amenities from deletion operations
+- If amenities are accidentally deleted, immediately repopulate with the standard Hebrew amenities list
+- Safe clearing approach: Clear only user-generated content tables (properties, property_images, etc.) but preserve reference tables (amenities)
+
+**Standard amenities list includes:** חניה, מעלית, מרפסת, מיזוג אוויר, מזגן, חימום, אינטרנט, כביסה, מטבח מצויד, מקלחת, אמבטיה, מחסן, גינה, מאובטח, נגיש לנכים, סורגים, דלת פלדה, חצר, גג, ממ"ד

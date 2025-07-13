@@ -27,22 +27,17 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
 
   const imageUrls =
     sortedImages.length > 0
-      ? sortedImages
-          .map((img) => img.imageUrl)
-          .filter((url) => {
-            // Only allow UploadThing URLs and valid HTTP URLs, filter out Yad2 URLs and SVGs
-            return (
-              url &&
-              typeof url === 'string' &&
-              !url.startsWith('data:') &&
-              !url.toLowerCase().endsWith('.svg') &&
-              (url.includes('utfs.io') ||
-                url.includes('uploadthing.') ||
-                (url.startsWith('http') &&
-                  !url.includes('yad2.co.il') &&
-                  !url.includes('img.yad2')))
-            );
-          })
+      ? sortedImages.map((img) => img.imageUrl).filter(url => {
+          // Only allow UploadThing URLs and valid HTTP URLs, filter out Yad2 URLs and SVGs
+          return url && 
+                 typeof url === 'string' && 
+                 !url.startsWith('data:') && 
+                 !url.toLowerCase().endsWith('.svg') &&
+                 (url.includes('utfs.io') || 
+                  url.includes('uploadthing.') || 
+                  url.includes('ufs.sh') || // Add support for new UploadThing domain
+                  (url.startsWith('http') && !url.includes('yad2.co.il') && !url.includes('img.yad2')));
+        })
       : [];
 
   // If no valid URLs, use fallback
@@ -154,21 +149,29 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
           {property.listingType !== 'sale' && '/חודש'}
         </p>
 
-        <div className="mb-2 flex items-center text-sm text-gray-600 dark:text-gray-400">
-          <MapPin className="mr-1 h-4 w-4" />
-          <span className="line-clamp-1">{property.locationText}</span>
+        <div className="mb-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <MapPin className="h-4 w-4" />
+          <span className="line-clamp-1">
+            {(() => {
+              const { city, neighborhood, formattedAddress } = property.location || {};
+              if (city && neighborhood) {
+                return `${city}, ${neighborhood}`;
+              }
+              return neighborhood || city || formattedAddress || 'לא נמצא';
+            })()}
+          </span>
         </div>
 
         <div className="mb-4 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
           {property.bedrooms && (
-            <div className="flex items-center">
-              <Bed className="mr-1 h-4 w-4" />
+            <div className="flex items-center gap-2">
+              <Bed className="h-4 w-4" />
               <span>{property.bedrooms} חדרים</span>
             </div>
           )}
           {property.bathrooms && (
-            <div className="flex items-center">
-              <Bath className="mr-1 h-4 w-4" />
+            <div className="flex items-center gap-2">
+              <Bath className="h-4 w-4" />
               <span>{property.bathrooms} מקלחות</span>
             </div>
           )}

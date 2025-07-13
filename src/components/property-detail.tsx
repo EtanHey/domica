@@ -93,7 +93,31 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-2xl font-bold">{property.title}</h1>
+                  <h1 className="text-2xl font-bold">
+                    {(() => {
+                      const { city, neighborhood } = property.property_location || {};
+                      const location = city && neighborhood ? `${city}, ${neighborhood}` : (neighborhood || city);
+                      const rooms = property.bedrooms ? `${property.bedrooms} חדרים` : '';
+                      const size = property.square_meters ? `${property.square_meters} מ\"ר` : '';
+                      const type = property.property_type || '';
+                      
+                      // Build enhanced title
+                      let enhancedTitle = property.title;
+                      
+                      // Add location if not already in title
+                      if (location && !property.title.includes(location.split(',')[0])) {
+                        enhancedTitle = `${enhancedTitle} ב${location}`;
+                      }
+                      
+                      // Add key details if not already present
+                      const details = [rooms, size, type].filter(Boolean);
+                      if (details.length > 0 && !details.some(detail => property.title.includes(detail))) {
+                        enhancedTitle = `${enhancedTitle} | ${details.join(' | ')}`;
+                      }
+                      
+                      return enhancedTitle;
+                    })()}
+                  </h1>
                   {property.listing_type && (
                     <Badge
                       variant={property.listing_type === 'rent' ? 'default' : 'secondary'}
@@ -106,7 +130,12 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
 
                 <div className="text-muted-foreground flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  <span>{property.location_text || 'מיקום לא צוין'}</span>
+                  <span>
+                    {property.property_location?.formatted_address ||
+                      property.property_location?.address ||
+                      `${property.property_location?.neighborhood || ''} ${property.property_location?.city || ''}`.trim() ||
+                      'מיקום לא צוין'}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -122,10 +151,10 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                       <span>{property.bathrooms} חדרי רחצה</span>
                     </div>
                   )}
-                  {property.square_feet && (
+                  {property.square_meters && (
                     <div className="flex items-center gap-2">
                       <Square className="text-muted-foreground h-4 w-4" />
-                      <span>{property.square_feet} מ"ר</span>
+                      <span>{property.square_meters} מ"ר</span>
                     </div>
                   )}
                   {property.property_type && (
@@ -150,17 +179,65 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
           )}
 
           {/* Amenities */}
-          {property.property_amenities && property.property_amenities.length > 0 && (
+          {property.property_amenities && (
             <Card>
               <CardContent className="p-6">
                 <h2 className="mb-4 text-lg font-semibold">מתקנים ותכונות</h2>
                 <div className="flex flex-wrap gap-2">
-                  {property.property_amenities.map((item: any) => (
-                    <Badge key={item.amenity.id} variant="secondary">
+                  {property.property_amenities.parking > 0 && (
+                    <Badge variant="secondary">
                       <CheckCircle className="ml-1 h-3 w-3" />
-                      {item.amenity.name}
+                      חניה{property.property_amenities.parking > 1 && ` (${property.property_amenities.parking})`}
                     </Badge>
-                  ))}
+                  )}
+                  {property.property_amenities.elevator && (
+                    <Badge variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      מעלית
+                    </Badge>
+                  )}
+                  {property.property_amenities.balcony > 0 && (
+                    <Badge variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      מרפסת{property.property_amenities.balcony > 1 && ` (${property.property_amenities.balcony})`}
+                    </Badge>
+                  )}
+                  {property.property_amenities.garden > 0 && (
+                    <Badge variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      גינה{property.property_amenities.garden > 1 && ` (${property.property_amenities.garden})`}
+                    </Badge>
+                  )}
+                  {property.property_amenities.air_conditioning && (
+                    <Badge variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      מיזוג אוויר
+                    </Badge>
+                  )}
+                  {property.property_amenities.heating && (
+                    <Badge variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      חימום
+                    </Badge>
+                  )}
+                  {property.property_amenities.internet && (
+                    <Badge variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      אינטרנט
+                    </Badge>
+                  )}
+                  {property.property_amenities.equipped_kitchen && (
+                    <Badge variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      מטבח מצויד
+                    </Badge>
+                  )}
+                  {property.property_amenities.safe_room && (
+                    <Badge variant="secondary">
+                      <CheckCircle className="ml-1 h-3 w-3" />
+                      ממ"ד
+                    </Badge>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -233,8 +310,10 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                     )}
                     <div>
                       <p className="font-medium">{property.landlord.name}</p>
-                      {property.landlord.phone && (
-                        <p className="text-muted-foreground text-sm">{property.landlord.phone}</p>
+                      {property.landlord.phone_number && (
+                        <p className="text-muted-foreground text-sm">
+                          {property.landlord.phone_number}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -313,7 +392,11 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                             {dup.title}
                           </Link>
                           <p className="text-muted-foreground mt-1 text-sm">
-                            {dup.location_text} • {formatPrice(dup.price_per_month)}
+                            {dup.property_location?.formatted_address ||
+                              dup.property_location?.address ||
+                              `${dup.property_location?.neighborhood || ''} ${dup.property_location?.city || ''}`.trim() ||
+                              'מיקום לא צוין'}{' '}
+                            • {formatPrice(dup.price_per_month)}
                             {property.listing_type === 'rent' && '/חודש'}
                           </p>
                         </div>

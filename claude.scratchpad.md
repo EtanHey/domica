@@ -206,5 +206,51 @@ User confirmed: "it works!!!"
 4. Maintained proper stealth configuration to bypass CAPTCHA
 
 ### Note on Deprecation Warnings:
+<<<<<<< HEAD
 
 User mentioned deprecation warnings - these are likely from dependencies and don't affect functionality.
+=======
+User mentioned deprecation warnings - these are likely from dependencies and don't affect functionality.
+
+## 🎯 FINAL FIRECRAWL OPTIMIZATION (2025-07-13)
+
+### Issue: Over-Engineered Configuration
+After reviewing official Firecrawl documentation through Context7 MCP, discovered that the implementation was over-engineered with unnecessary custom configurations that could interfere with Firecrawl's built-in anti-bot systems.
+
+### Solution: Simplified Configuration
+**Before (over-engineered):**
+```typescript
+const scrapeParams: ScrapeParams = {
+  formats: ['markdown', 'html', 'screenshot', 'extract'],
+  onlyMainContent: false,
+  waitFor: 2000,
+  timeout: 20000,
+  headers: {
+    'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8'
+  },
+  proxy: 'stealth',
+  location: {
+    country: 'IL',
+    languages: ['he']
+  }
+};
+```
+
+**After (simplified):**
+```typescript
+const scrapeParams: ScrapeParams = {
+  formats: ['markdown', 'html', 'extract'],
+  onlyMainContent: false,
+  proxy: 'stealth' // CRITICAL: Keep stealth proxy - let Firecrawl handle the rest
+};
+```
+
+### Test Results:
+- ✅ **Single listing**: Successfully scraped and saved 1 listing
+- ✅ **Search results**: Successfully scraped and saved 3 listings via two-step approach
+- ✅ **Performance**: Faster execution with simplified config
+- ✅ **Reliability**: Trusts Firecrawl's built-in anti-bot capabilities
+
+### Key Insight:
+Firecrawl works best when you trust its built-in systems rather than trying to micro-manage every aspect of the scraping process. The `proxy: 'stealth'` setting is the only critical override needed for Yad2.
+>>>>>>> 50984b7 (Working version finally)

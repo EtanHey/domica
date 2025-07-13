@@ -103,11 +103,29 @@ export class Yad2Scraper {
   }
 
   /**
-   * Scrape a single Yad2 listing
+   * Step 1: Extract listing URLs from search pages
+   */
+  async extractListingUrls(url: string, maxListings: number = 10): Promise<string[]> {
+    try {
+      console.log(`🔍 Extracting listing URLs from: ${url}`);
+      await this.ensureInitialized();
+
+      const urls = await this.scraper.extractListingUrls(url, maxListings);
+      return urls;
+    } catch (error) {
+      console.error('Error extracting listing URLs:', error);
+      return [];
+    } finally {
+      await this.cleanup();
+    }
+  }
+
+  /**
+   * Step 2: Scrape individual listing (optimized for single calls)
    */
   async scrapeSingleListing(url: string): Promise<Yad2Listing | null> {
     try {
-      console.log('Scraping single Yad2 listing:', url);
+      console.log('🏠 Scraping single Yad2 listing:', url);
       await this.ensureInitialized();
 
       const listing = await this.scraper.scrapeSingleListing(url);
@@ -120,23 +138,61 @@ export class Yad2Scraper {
       console.error('Error scraping single listing:', error);
       return null;
     } finally {
-      // Cleanup after single listing scrape
+      // Note: Don't cleanup here if we're doing batch operations
+      // The caller should manage cleanup for batch operations
+    }
+  }
+
+  /**
+   * Step 2 Batch: Scrape multiple listings efficiently
+   */
+  async scrapeMultipleListings(urls: string[]): Promise<Yad2Listing[]> {
+    try {
+      console.log(`🏘️ Batch scraping ${urls.length} listings`);
+      await this.ensureInitialized();
+
+      const scrapedListings = await this.scraper.scrapeListings(urls);
+      const yad2Listings = scrapedListings
+        .map(listing => this.convertToYad2Listing(listing))
+        .filter((listing): listing is Yad2Listing => listing !== null);
+
+      return yad2Listings;
+    } catch (error) {
+      console.error('Error in batch scraping:', error);
+      return [];
+    } finally {
       await this.cleanup();
     }
   }
 
   /**
-   * Scrape Yad2 search results page
+   * Scrape Yad2 search results page using two-step approach
    */
   async scrapeSearchResults(url: string, maxListings: number = 10): Promise<Yad2Listing[]> {
     try {
-      console.log('Scraping Yad2 URL:', url);
+      console.log('🚀 Scraping Yad2 URL with two-step approach:', url);
       await this.ensureInitialized();
 
+<<<<<<< HEAD
       const scrapedListings = await this.scraper.scrapeSearchResults(url, maxListings);
       console.log(`Found ${scrapedListings.length} listings`);
 
       return scrapedListings.map((listing) => this.convertToYad2Listing(listing));
+=======
+      // Use the enhanced two-step method if available
+      if (typeof this.scraper.scrapeSearchResultsWithTwoStep === 'function') {
+        console.log('Using enhanced two-step scraping...');
+        const scrapedListings = await this.scraper.scrapeSearchResultsWithTwoStep(url, maxListings);
+        console.log(`Found ${scrapedListings.length} listings via two-step approach`);
+        return scrapedListings.map(listing => this.convertToYad2Listing(listing));
+      } else {
+        // Fallback to original method
+        console.log('Using legacy scraping method...');
+        const scrapedListings = await this.scraper.scrapeSearchResults(url, maxListings);
+        console.log(`Found ${scrapedListings.length} listings`);
+        return scrapedListings.map(listing => this.convertToYad2Listing(listing));
+      }
+>>>>>>> 50984b7 (Working version finally)
     } catch (error) {
       console.error('Error scraping Yad2:', error);
       throw error;

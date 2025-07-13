@@ -20,8 +20,12 @@ async function getProperty(id: string) {
         image_order
       ),
       landlord:landlords(*),
-      property_amenities(
-        amenity:amenities(*)
+      property_amenities(*),
+      property_location(
+        address,
+        city,
+        neighborhood,
+        formatted_address
       )
     `
     )
@@ -37,7 +41,14 @@ async function getProperty(id: string) {
   if (data.master_property_id) {
     const { data: master } = await supabase
       .from('properties')
-      .select('id, title, price_per_month, location_text')
+      .select(
+        `
+        id, 
+        title, 
+        price_per_month,
+        property_location(formatted_address, address, city, neighborhood)
+      `
+      )
       .eq('id', data.master_property_id)
       .single();
     masterProperty = master;
@@ -48,7 +59,16 @@ async function getProperty(id: string) {
   if (data.duplicate_status === 'master') {
     const { data: dupes } = await supabase
       .from('properties')
-      .select('id, title, price_per_month, location_text, duplicate_status, duplicate_score')
+      .select(
+        `
+        id, 
+        title, 
+        price_per_month, 
+        duplicate_status, 
+        duplicate_score,
+        property_location(formatted_address, address, city, neighborhood)
+      `
+      )
       .eq('master_property_id', data.id)
       .order('duplicate_score', { ascending: false });
     duplicates = dupes || [];

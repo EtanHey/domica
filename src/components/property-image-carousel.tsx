@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { HouseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PropertyImageCarouselProps {
@@ -14,37 +14,20 @@ interface PropertyImageCarouselProps {
 
 export function PropertyImageCarousel({ images, title }: PropertyImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const startX = useRef(0);
-  const currentX = useRef(0);
-  const isDragging = useRef(false);
-
-  console.log('PropertyImageCarousel debug:', {
-    title,
-    rawImages: images,
-    imageUrls: images?.map((img) => img.image_url),
-  });
-
-  // Check if we're in RTL mode
-  const isRTL = document.documentElement.dir === 'rtl';
 
   // Sort images by order
   const sortedImages = images?.sort((a, b) => (a.image_order || 0) - (b.image_order || 0)) || [];
 
   // Filter out invalid image URLs and prioritize UploadThing URLs
-  const validImages = sortedImages.filter((img) => {
-    return (
-      img?.image_url &&
-      typeof img.image_url === 'string' &&
-      !img.image_url.startsWith('data:') &&
-      (img.image_url.includes('utfs.io') ||
-        img.image_url.includes('uploadthing.') ||
-        (img.image_url.startsWith('http') &&
-          !img.image_url.includes('yad2.co.il') &&
-          !img.image_url.includes('img.yad2')) ||
-        img.image_url.startsWith('/'))
-    );
+  const validImages = sortedImages.filter(img => {
+    return img?.image_url && 
+           typeof img.image_url === 'string' && 
+           !img.image_url.startsWith('data:') && 
+           (img.image_url.includes('utfs.io') || 
+            img.image_url.includes('uploadthing.') || 
+            img.image_url.includes('ufs.sh') || 
+            (img.image_url.startsWith('http') && !img.image_url.includes('yad2.co.il') && !img.image_url.includes('img.yad2')) ||
+            img.image_url.startsWith('/'));
   });
 
   const primaryImage = validImages.find((img) => img.is_primary) || validImages[0];
@@ -64,9 +47,7 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   }
 
   const goToSlide = (index: number) => {
-    setIsTransitioning(true);
     setCurrentIndex(index);
-    setTimeout(() => setIsTransitioning(false), 300);
   };
 
   const goToPrevious = () => {
@@ -79,76 +60,23 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
     goToSlide(newIndex);
   };
 
-  // Touch/Mouse handlers
-  const handleStart = (clientX: number) => {
-    isDragging.current = true;
-    startX.current = clientX;
-    currentX.current = clientX;
-  };
-
-  const handleMove = (clientX: number) => {
-    if (!isDragging.current) return;
-    currentX.current = clientX;
-  };
-
-  const handleEnd = () => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-
-    const diff = startX.current - currentX.current;
-    const threshold = 50;
-
-    if (Math.abs(diff) > threshold) {
-      // Simple swipe logic: swipe right = next, swipe left = previous
-      if (diff > 0) {
-        goToNext();
-      } else {
-        goToPrevious();
-      }
-    }
-  };
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        goToPrevious();
-      } else if (e.key === 'ArrowRight') {
-        goToNext();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex]);
-
   return (
     <div className="w-full">
-      {/* Main Carousel */}
-      <div
-        className="relative overflow-hidden rounded-lg bg-black"
-        ref={carouselRef}
-        onMouseDown={(e) => handleStart(e.clientX)}
-        onMouseMove={(e) => handleMove(e.clientX)}
-        onMouseUp={handleEnd}
-        onMouseLeave={handleEnd}
-        onTouchStart={(e) => handleStart(e.touches[0].clientX)}
-        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
-        onTouchEnd={handleEnd}
-      >
-        <div
-          className={`flex transition-transform ${isTransitioning ? 'duration-300' : 'duration-0'}`}
-          style={{
-            transform: `translateX(-${currentIndex * 100}%)`,
-          }}
-        >
+      {/* Main Carousel - Simple approach without Embla */}
+      <div className="relative overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 w-full">
+        <div className="relative h-[300px] md:h-[400px]">
           {allImages.map((image, index) => (
-            <div key={index} className="relative h-[300px] w-full flex-shrink-0 md:h-[400px]">
+            <div 
+              key={`${image.image_url}-${index}`} 
+              className={`absolute inset-0 transition-opacity duration-300 ${
+                index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
+            >
               <img
                 src={image?.image_url || '/placeholder-rental.jpg'}
                 alt={`${title} - תמונה ${index + 1}`}
-                className="h-full w-full object-cover"
-                loading={index === 0 ? 'eager' : 'lazy'}
+                className="h-full w-full object-contain"
+                loading={index === 0 ? "eager" : "lazy"}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = '/placeholder-rental.jpg';
@@ -162,18 +90,18 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
         {allImages.length > 1 && (
           <>
             <button
-              className="absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-lg backdrop-blur-sm transition-all hover:bg-white"
+              className="absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-lg backdrop-blur-sm transition-all hover:bg-white dark:bg-black/90 dark:hover:bg-black z-20"
               onClick={goToPrevious}
               aria-label="תמונה קודמת"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5 text-gray-800 dark:text-white" />
             </button>
             <button
-              className="absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-lg backdrop-blur-sm transition-all hover:bg-white"
+              className="absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-lg backdrop-blur-sm transition-all hover:bg-white dark:bg-black/90 dark:hover:bg-black z-20"
               onClick={goToNext}
               aria-label="תמונה הבאה"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5 text-gray-800 dark:text-white" />
             </button>
           </>
         )}
@@ -185,10 +113,10 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
           {allImages.map((_, index) => (
             <button
               key={index}
-              className={`h-3 rounded-full shadow-lg transition-all ${
-                index === currentIndex
-                  ? 'bg-primary w-8 scale-110'
-                  : 'w-3 border border-gray-300 bg-white/80 hover:bg-white'
+              className={`h-3 rounded-full transition-all shadow-lg ${
+                index === currentIndex 
+                  ? 'w-8 bg-white/50 scale-110' 
+                  : 'w-3 bg-white/30 hover:bg-white border border-gray-300'
               }`}
               onClick={() => goToSlide(index)}
               aria-label={`עבור לתמונה ${index + 1}`}
@@ -215,7 +143,11 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
                 alt={`תמונה ${index + 1}`}
                 className="h-full w-full object-cover"
                 loading="lazy"
+                onLoad={() => {
+                  console.log(`✅ Thumbnail ${index + 1} loaded:`, image?.image_url);
+                }}
                 onError={(e) => {
+                  console.error(`❌ Thumbnail ${index + 1} failed:`, image?.image_url);
                   const target = e.target as HTMLImageElement;
                   target.src = '/placeholder-rental.jpg';
                 }}
