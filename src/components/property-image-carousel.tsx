@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { HouseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 
 interface PropertyImageCarouselProps {
   images: Array<{
@@ -14,6 +15,7 @@ interface PropertyImageCarouselProps {
 
 export function PropertyImageCarousel({ images, title }: PropertyImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageLoadStatus, setImageLoadStatus] = useState<Record<number, boolean>>({});
 
   // Sort images by order
   const sortedImages = images?.sort((a, b) => (a.image_order || 0) - (b.image_order || 0)) || [];
@@ -34,6 +36,36 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   const allImages = primaryImage
     ? [primaryImage, ...validImages.filter((img) => !img.is_primary)]
     : validImages;
+
+  console.log('Final processed images:', {
+    allImages,
+    allImageUrls: allImages.map(img => img.image_url)
+  });
+
+  // Preload all images when component mounts using Next.js optimized URLs
+  useEffect(() => {
+    allImages.forEach((image, index) => {
+      if (image.image_url) {
+        // Create Next.js optimized image URL for preloading
+        const optimizedUrl = `/_next/image?url=${encodeURIComponent(image.image_url)}&w=800&q=75`;
+        
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = optimizedUrl;
+        document.head.appendChild(link);
+        
+        console.log(`🎯 Preloading optimized image ${index + 1}:`, optimizedUrl);
+        
+        // Also track load status
+        const img = new window.Image();
+        img.onload = () => {
+          setImageLoadStatus(prev => ({ ...prev, [index]: true }));
+        };
+        img.src = optimizedUrl;
+      }
+    });
+  }, [allImages]);
 
   if (allImages.length === 0) {
     return (
@@ -72,16 +104,27 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
                 index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
               }`}
             >
-              <img
+              <Image
                 src={image?.image_url || '/placeholder-rental.jpg'}
                 alt={`${title} - תמונה ${index + 1}`}
-                className="h-full w-full object-contain"
-                loading={index === 0 ? "eager" : "lazy"}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = '/placeholder-rental.jpg';
+                fill
+                className="object-contain"
+                priority={index === 0} // Only first image gets priority
+                loading="eager" // Load all images eagerly for carousel
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                onLoad={() => {
+                  setImageLoadStatus(prev => ({ ...prev, [index]: true }));
+                  console.log(`✅ Main carousel image ${index + 1} loaded:`, image?.image_url);
+                }}
+                onError={() => {
+                  console.error(`❌ Main carousel image ${index + 1} failed:`, image?.image_url);
                 }}
               />
+              {!imageLoadStatus[index] && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                  <div className="text-gray-500 dark:text-gray-400">טוען תמונה...</div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -138,18 +181,18 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
               }`}
               onClick={() => goToSlide(index)}
             >
-              <img
+              <Image
                 src={image?.image_url || '/placeholder-rental.jpg'}
                 alt={`תמונה ${index + 1}`}
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
                 loading="lazy"
+                sizes="(max-width: 768px) 25vw, (max-width: 1200px) 16vw, 12vw"
                 onLoad={() => {
                   console.log(`✅ Thumbnail ${index + 1} loaded:`, image?.image_url);
                 }}
-                onError={(e) => {
+                onError={() => {
                   console.error(`❌ Thumbnail ${index + 1} failed:`, image?.image_url);
-                  const target = e.target as HTMLImageElement;
-                  target.src = '/placeholder-rental.jpg';
                 }}
               />
             </button>

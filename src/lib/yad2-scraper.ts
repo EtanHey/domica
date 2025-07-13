@@ -173,12 +173,6 @@ export class Yad2Scraper {
       console.log('🚀 Scraping Yad2 URL with two-step approach:', url);
       await this.ensureInitialized();
 
-<<<<<<< HEAD
-      const scrapedListings = await this.scraper.scrapeSearchResults(url, maxListings);
-      console.log(`Found ${scrapedListings.length} listings`);
-
-      return scrapedListings.map((listing) => this.convertToYad2Listing(listing));
-=======
       // Use the enhanced two-step method if available
       if (typeof this.scraper.scrapeSearchResultsWithTwoStep === 'function') {
         console.log('Using enhanced two-step scraping...');
@@ -192,7 +186,6 @@ export class Yad2Scraper {
         console.log(`Found ${scrapedListings.length} listings`);
         return scrapedListings.map(listing => this.convertToYad2Listing(listing));
       }
->>>>>>> 50984b7 (Working version finally)
     } catch (error) {
       console.error('Error scraping Yad2:', error);
       throw error;
@@ -266,8 +259,8 @@ export class Yad2Scraper {
             description: listing.description,
             price_per_month: listing.price,
             currency: listing.currency,
-            location_text: listing.location,
             bedrooms: Math.floor(listing.rooms - 1),
+            square_meters: listing.size_sqm,
             property_type: listing.property_type,
             last_seen_at: new Date().toISOString(),
           })
@@ -293,19 +286,18 @@ export class Yad2Scraper {
         const { data: property, error: insertError } = await supabase
           .from('properties')
           .insert({
-            facebook_id: listing.yad2_id, // Using facebook_id field for any external ID
+            source_id: listing.yad2_id,
             title: listing.title,
             description: listing.description,
             price_per_month: listing.price,
             currency: listing.currency,
-            location_text: listing.location,
             bedrooms: Math.floor(listing.rooms - 1),
+            square_meters: listing.size_sqm,
             property_type: listing.property_type,
             is_active: true,
             listing_type: listing.listing_type,
             duplicate_status: duplicateResult.action === 'review' ? 'review' : 'unique',
             source_platform: 'yad2',
-            source_id: listing.yad2_id,
             // Only store source_url if it's an actual listing URL, not a search URL
             source_url: listing.listing_url.includes('/item/')
               ? this.normalizeUrl(listing.listing_url)
@@ -315,6 +307,39 @@ export class Yad2Scraper {
           .single();
 
         if (insertError) throw insertError;
+
+        // Insert property location data
+        if (property) {
+          // Parse location string to extract components
+          const locationParts = listing.location.split(',').map(s => s.trim());
+          let city = locationParts[locationParts.length - 1];
+          let neighborhood = '';
+          let address = '';
+
+          // For locations like "מונטיפיורי, הרכבת, תל אביב יפו"
+          if (locationParts.length >= 2) {
+            city = locationParts[locationParts.length - 1]; // Last part is usually city
+            if (locationParts.length >= 3) {
+              neighborhood = locationParts[locationParts.length - 2]; // Second to last is neighborhood
+              address = locationParts.slice(0, -2).join(', '); // Everything else is address
+            } else {
+              neighborhood = locationParts[0]; // First part is neighborhood
+            }
+          }
+
+          const { error: locationError } = await supabase.from('property_location').insert({
+            property_id: property.id,
+            address: address || null,
+            city: city,
+            neighborhood: neighborhood || null,
+            formatted_address: listing.location,
+          });
+
+          if (locationError) {
+            console.error('Error saving property location:', locationError);
+            // Don't throw - property is already saved, location is supplementary
+          }
+        }
 
         // Upload images to UploadThing first, then save references
         if (property && listing.image_urls.length > 0) {
@@ -395,28 +420,76 @@ export class Yad2Scraper {
           }
         }
 
-        // Insert amenities
+        // Insert amenities using new property_amenities structure
         if (property && listing.amenities.length > 0) {
-          // Get amenity IDs
-          const { data: amenityData } = await supabase.from('amenities').select('id, name');
+          // Map Hebrew amenity names to boolean fields
+          const amenityMapping = {
+            'חניה': 'parking',
+            'מעלית': 'elevator', 
+            'מרפסת': 'balcony',
+            'מיזוג אוויר': 'air_conditioning',
+            'מזגן': 'ac_unit',
+            'חימום': 'heating',
+            'אינטרנט': 'internet',
+            'כביסה': 'laundry',
+            'מטבח מצויד': 'equipped_kitchen',
+            'מקלחת': 'shower',
+            'אמבטיה': 'bathtub',
+            'מחסן': 'storage',
+            'גינה': 'garden',
+            'מאובטח': 'secured',
+            'נגיש לנכים': 'accessible',
+            'סורגים': 'bars',
+            'דלת פלדה': 'steel_door',
+            'חצר': 'yard',
+            'גג': 'roof',
+            'ממ"ד': 'safe_room'
+          };
 
-          if (amenityData) {
-            const amenityMap = new Map(amenityData.map((a) => [a.name, a.id]));
+          // Create amenities object with boolean values
+          const amenitiesData: any = {
+            property_id: property.id,
+            parking: 0, // Default values
+            elevator: false,
+            balcony: 0,
+            garden: 0,
+            yard: false,
+            roof: false,
+            air_conditioning: false,
+            ac_unit: false,
+            heating: false,
+            internet: false,
+            laundry: false,
+            equipped_kitchen: false,
+            shower: false,
+            bathtub: false,
+            storage: false,
+            secured: false,
+            accessible: false,
+            bars: false,
+            steel_door: false,
+            safe_room: false
+          };
 
-            const amenityInserts = listing.amenities
-              .filter((name) => amenityMap.has(name))
-              .map((name) => ({
-                property_id: property.id,
-                amenity_id: amenityMap.get(name)!,
-              }));
-
-            if (amenityInserts.length > 0) {
-              const { error: amenityError } = await supabase
-                .from('property_amenities')
-                .insert(amenityInserts);
-
-              if (amenityError) throw amenityError;
+          // Set amenities to true based on listing
+          listing.amenities.forEach(amenity => {
+            const field = amenityMapping[amenity as keyof typeof amenityMapping];
+            if (field) {
+              if (field === 'parking' || field === 'balcony' || field === 'garden') {
+                amenitiesData[field] = 1; // Integer fields
+              } else {
+                amenitiesData[field] = true; // Boolean fields
+              }
             }
+          });
+
+          const { error: amenityError } = await supabase
+            .from('property_amenities')
+            .insert(amenitiesData);
+
+          if (amenityError) {
+            console.error('Error saving property amenities:', amenityError);
+            // Don't throw - property is already saved, amenities are supplementary
           }
         }
 

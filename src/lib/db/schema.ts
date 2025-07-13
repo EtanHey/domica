@@ -10,7 +10,6 @@ import {
   date,
   jsonb,
   index,
-  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -34,22 +33,17 @@ export const properties = pgTable(
   'properties',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    facebookId: varchar('facebook_id', { length: 255 }).unique().notNull(),
     landlordId: uuid('landlord_id').references(() => landlords.id, { onDelete: 'set null' }),
     title: varchar('title', { length: 500 }).notNull(),
     description: text('description'),
     pricePerMonth: decimal('price_per_month', { precision: 10, scale: 2 }).notNull(),
     currency: varchar('currency', { length: 3 }).default('USD'),
-    locationText: varchar('location_text', { length: 500 }),
-    latitude: decimal('latitude', { precision: 10, scale: 7 }),
-    longitude: decimal('longitude', { precision: 10, scale: 7 }),
     bedrooms: integer('bedrooms'),
     bathrooms: decimal('bathrooms', { precision: 3, scale: 1 }),
-    squareFeet: integer('square_feet'),
+    squareMeters: integer('square_meters'),
     propertyType: varchar('property_type', { length: 50 }),
     availableDate: date('available_date'),
     isActive: boolean('is_active').default(true),
-    // New fields for duplicate detection and listing type
     listingType: varchar('listing_type', { length: 10 }).default('rent'),
     duplicateStatus: varchar('duplicate_status', { length: 20 }).default('unique'),
     duplicateScore: decimal('duplicate_score', { precision: 5, scale: 2 }),
@@ -57,14 +51,15 @@ export const properties = pgTable(
     sourcePlatform: varchar('source_platform', { length: 50 }),
     sourceId: varchar('source_id', { length: 255 }),
     sourceUrl: text('source_url'),
+    phoneNormalized: varchar('phone_normalized', { length: 20 }),
     firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    scrapedAt: timestamp('scraped_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    locationIdx: index('idx_properties_location').on(table.latitude, table.longitude),
     priceIdx: index('idx_properties_price').on(table.pricePerMonth),
     bedroomsIdx: index('idx_properties_bedrooms').on(table.bedrooms),
     activeIdx: index('idx_properties_is_active').on(table.isActive),
@@ -88,6 +83,42 @@ export const propertyImages = pgTable(
   })
 );
 
+export const propertyLocation = pgTable(
+  'property_location',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'cascade' }),
+    address: text('address'),
+    city: text('city'),
+    neighborhood: text('neighborhood'),
+    placeId: text('place_id').unique(),
+    formattedAddress: text('formatted_address'),
+    latitude: decimal('latitude', { precision: 10, scale: 7 }),
+    longitude: decimal('longitude', { precision: 10, scale: 7 }),
+    streetNumber: text('street_number'),
+    route: text('route'),
+    sublocality: text('sublocality'),
+    locality: text('locality'),
+    administrativeAreaLevel1: text('administrative_area_level_1'),
+    administrativeAreaLevel2: text('administrative_area_level_2'),
+    country: text('country'),
+    postalCode: text('postal_code'),
+    placeTypes: text('place_types').array(),
+    viewportNortheastLat: decimal('viewport_northeast_lat', { precision: 10, scale: 7 }),
+    viewportNortheastLng: decimal('viewport_northeast_lng', { precision: 10, scale: 7 }),
+    viewportSouthwestLat: decimal('viewport_southwest_lat', { precision: 10, scale: 7 }),
+    viewportSouthwestLng: decimal('viewport_southwest_lng', { precision: 10, scale: 7 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    propertyIdx: index('idx_property_location_property').on(table.propertyId),
+    placeIdx: index('idx_property_location_place').on(table.placeId),
+  })
+);
+
 export const amenities = pgTable('amenities', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 100 }).unique().notNull(),
@@ -99,15 +130,36 @@ export const amenities = pgTable('amenities', {
 export const propertyAmenities = pgTable(
   'property_amenities',
   {
+    id: uuid('id').primaryKey().defaultRandom(),
     propertyId: uuid('property_id')
       .notNull()
-      .references(() => properties.id, { onDelete: 'cascade' }),
-    amenityId: uuid('amenity_id')
-      .notNull()
-      .references(() => amenities.id, { onDelete: 'cascade' }),
+      .references(() => properties.id, { onDelete: 'cascade' })
+      .unique(),
+    parking: integer('parking').default(0),
+    elevator: boolean('elevator').default(false),
+    balcony: integer('balcony').default(0),
+    garden: integer('garden').default(0),
+    yard: boolean('yard').default(false),
+    roof: boolean('roof').default(false),
+    airConditioning: boolean('air_conditioning').default(false),
+    acUnit: boolean('ac_unit').default(false),
+    heating: boolean('heating').default(false),
+    internet: boolean('internet').default(false),
+    laundry: boolean('laundry').default(false),
+    equippedKitchen: boolean('equipped_kitchen').default(false),
+    shower: boolean('shower').default(false),
+    bathtub: boolean('bathtub').default(false),
+    storage: boolean('storage').default(false),
+    secured: boolean('secured').default(false),
+    accessible: boolean('accessible').default(false),
+    bars: boolean('bars').default(false),
+    steelDoor: boolean('steel_door').default(false),
+    safeRoom: boolean('safe_room').default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.propertyId, table.amenityId] }),
+    propertyIdx: index('idx_property_amenities_property').on(table.propertyId),
   })
 );
 
@@ -155,7 +207,14 @@ export const propertiesRelations = relations(properties, ({ one, many }) => ({
     references: [landlords.id],
   }),
   images: many(propertyImages),
-  amenities: many(propertyAmenities),
+  location: one(propertyLocation, {
+    fields: [properties.id],
+    references: [propertyLocation.propertyId],
+  }),
+  amenities: one(propertyAmenities, {
+    fields: [properties.id],
+    references: [propertyAmenities.propertyId],
+  }),
   priceHistory: many(priceHistory),
   scrapeMetadata: many(scrapeMetadata),
 }));
@@ -167,18 +226,21 @@ export const propertyImagesRelations = relations(propertyImages, ({ one }) => ({
   }),
 }));
 
+export const propertyLocationRelations = relations(propertyLocation, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyLocation.propertyId],
+    references: [properties.id],
+  }),
+}));
+
 export const amenitiesRelations = relations(amenities, ({ many }) => ({
-  properties: many(propertyAmenities),
+  // Note: amenities table is now separate from properties
 }));
 
 export const propertyAmenitiesRelations = relations(propertyAmenities, ({ one }) => ({
   property: one(properties, {
     fields: [propertyAmenities.propertyId],
     references: [properties.id],
-  }),
-  amenity: one(amenities, {
-    fields: [propertyAmenities.amenityId],
-    references: [amenities.id],
   }),
 }));
 

@@ -37,6 +37,12 @@ export function useProperties(filters?: PropertyFilters) {
           landlord:landlords(
             name,
             profile_image_url
+          ),
+          property_location(
+            address,
+            city,
+            neighborhood,
+            formatted_address
           )
         `,
           { count: 'exact' }
@@ -107,8 +113,12 @@ export function useProperty(id: string) {
             caption
           ),
           landlord:landlords(*),
-          property_amenities(
-            amenity:amenities(*)
+          property_amenities(*),
+          property_location(
+            address,
+            city,
+            neighborhood,
+            formatted_address
           )
         `
         )

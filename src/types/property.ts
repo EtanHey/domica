@@ -2,6 +2,7 @@ import { InferSelectModel } from 'drizzle-orm';
 import {
   properties,
   propertyImages,
+  propertyLocation,
   landlords,
   amenities,
   propertyAmenities,
@@ -14,6 +15,7 @@ import {
 // Base types inferred from schema
 export type Property = InferSelectModel<typeof properties>;
 export type PropertyImage = InferSelectModel<typeof propertyImages>;
+export type PropertyLocation = InferSelectModel<typeof propertyLocation>;
 export type Landlord = InferSelectModel<typeof landlords>;
 export type Amenity = InferSelectModel<typeof amenities>;
 export type PropertyAmenity = InferSelectModel<typeof propertyAmenities>;
@@ -25,8 +27,9 @@ export type PropertyMergeHistory = InferSelectModel<typeof propertyMergeHistory>
 // Types with relations
 export type PropertyWithRelations = Property & {
   images?: PropertyImage[];
+  location?: PropertyLocation | null;
   landlord?: Landlord | null;
-  amenities?: Amenity[];
+  amenities?: PropertyAmenity | null;
   priceHistory?: PriceHistory[];
   scrapeMetadata?: ScrapeMetadata[];
 };

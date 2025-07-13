@@ -39,25 +39,20 @@ export default function RootLayout({
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
               <header className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                 <div className="container mx-auto px-4 py-4">
-<<<<<<< HEAD
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    דומיקה - Domica
-                  </h1>
-=======
                   <div className="flex items-center justify-between">
-                    <nav className="flex items-center gap-4">
+                    <nav className="flex items-center gap-6">
                       <Link 
                         href="/" 
-                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
-                        <Home className="h-4 w-4" />
+                        <Home className="h-5 w-5" />
                         בית
                       </Link>
                       <Link 
                         href="/scraping-poc" 
-                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
-                        <Search className="h-4 w-4" />
+                        <Search className="h-5 w-5" />
                         PoC חיפוש
                       </Link>
                     </nav>
@@ -72,7 +67,6 @@ export default function RootLayout({
                       />
                     </Link>
                   </div>
->>>>>>> 50984b7 (Working version finally)
                 </div>
               </header>
               <main>{children}</main>

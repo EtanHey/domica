@@ -142,7 +142,9 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
       </Link>
 
       <div className="p-4">
-        <h3 className="mb-2 line-clamp-2 text-lg font-semibold">{property.title}</h3>
+        <Link href={`/property/${property.id}`}>
+          <h3 className="mb-2 line-clamp-2 text-lg font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">{property.title}</h3>
+        </Link>
 
         <p className="mb-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
           {formatPrice(property.pricePerMonth)}
@@ -152,13 +154,10 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
         <div className="mb-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
           <MapPin className="h-4 w-4" />
           <span className="line-clamp-1">
-            {(() => {
-              const { city, neighborhood, formattedAddress } = property.location || {};
-              if (city && neighborhood) {
-                return `${city}, ${neighborhood}`;
-              }
-              return neighborhood || city || formattedAddress || 'לא נמצא';
-            })()}
+            {property.location?.formattedAddress ||
+              property.location?.address ||
+              `${property.location?.neighborhood || ''} ${property.location?.city || ''}`.trim() ||
+              'מיקום לא צוין'}
           </span>
         </div>
 

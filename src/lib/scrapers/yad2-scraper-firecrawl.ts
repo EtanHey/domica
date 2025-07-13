@@ -362,75 +362,13 @@ export class Yad2ScraperFirecrawl {
       console.log(`Scraping listing: ${url}`);
 
       const scrapeParams: ScrapeParams = {
-<<<<<<< HEAD
-        formats: ['markdown', 'html', 'screenshot', 'extract'],
-        onlyMainContent: false,
-        waitFor: 2000,
-        timeout: 20000,
-        headers: {
-          'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8',
-        },
-        proxy: 'stealth',
-        location: {
-          country: 'IL',
-          languages: ['he'],
-        },
-=======
         formats: ['markdown', 'html', 'extract'],
         onlyMainContent: true, // Focus only on main content to avoid "similar properties" sections
         proxy: 'stealth', // CRITICAL: Keep stealth proxy - let Firecrawl handle the rest
->>>>>>> 50984b7 (Working version finally)
         extract: {
           schema: {
             type: 'object',
             properties: {
-<<<<<<< HEAD
-              title: { type: 'string', description: 'Property title or headline' },
-              price: {
-                type: 'number',
-                description: 'Monthly rental price or sale price in shekels',
-              },
-              rooms: { type: 'number', description: 'Number of rooms' },
-              floor: { type: 'number', description: 'Floor number' },
-              size_sqm: { type: 'number', description: 'Size in square meters' },
-              location: { type: 'string', description: 'Full address or location' },
-              city: { type: 'string', description: 'City name only' },
-              neighborhood: { type: 'string', description: 'Neighborhood or area name' },
-              description: { type: 'string', description: 'Property description' },
-              amenities: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'List of amenities like parking, elevator, etc',
-              },
-              contact_name: { type: 'string', description: 'Name of the contact person' },
-              phone_number: { type: 'string', description: 'Contact phone number' },
-              property_type: {
-                type: 'string',
-                description: 'Type of property (apartment, house, etc)',
-              },
-              listing_type: {
-                type: 'string',
-                enum: ['rent', 'sale'],
-                description: 'Whether this is for rent or sale',
-              },
-            },
-            required: [
-              'price',
-              'title',
-              'rooms',
-              'floor',
-              'size_sqm',
-              'location',
-              'description',
-              'amenities',
-              'contact_name',
-              'phone_number',
-              'property_type',
-              'listing_type',
-            ],
-          },
-        },
-=======
               title: { type: 'string', description: 'MAIN property title/headline in Hebrew for the PRIMARY listing being viewed. Do NOT extract titles from similar properties or recommendations on the page.' },
               price: {
                 type: 'number',
@@ -495,7 +433,6 @@ export class Yad2ScraperFirecrawl {
             required: ['title', 'price', 'rooms', 'city', 'description']
           }
         }
->>>>>>> 50984b7 (Working version finally)
       };
 
       const result = await this.firecrawl.scrapeUrl(url, scrapeParams);
@@ -508,11 +445,7 @@ export class Yad2ScraperFirecrawl {
 
       // Firecrawl returns data directly on the response object
       const { markdown = '', html = '', metadata = {}, screenshot, extract } = result;
-<<<<<<< HEAD
-
-=======
       
->>>>>>> 50984b7 (Working version finally)
       // Check if this is a captcha page
       if (
         markdown.includes('Are you for real') ||
@@ -528,38 +461,22 @@ export class Yad2ScraperFirecrawl {
       const idMatch = url.match(/item\/([a-zA-Z0-9]+)/);
       const id = idMatch ? idMatch[1] : `yad2_${Date.now()}`;
 
-<<<<<<< HEAD
-      // Use extracted data if available, otherwise fall back to manual parsing
-=======
       // Use JSON extraction if available, otherwise fall back to manual parsing
->>>>>>> 50984b7 (Working version finally)
       let title = extract?.title || metadata.title || '';
       let price = extract?.price || 0;
       let rooms = extract?.rooms || 0;
       let floor: number | null = extract?.floor || null;
       let size: number | null = extract?.size_sqm || null;
-<<<<<<< HEAD
-      let location = extract?.location || '';
-      let city = extract?.city || '';
-=======
       let location = extract?.raw_location || extract?.city || '';
       let city = extract?.city || '';
       let neighborhood = extract?.neighborhood;
       let address = extract?.address;
->>>>>>> 50984b7 (Working version finally)
       let description = extract?.description || '';
       let amenities = extract?.amenities || [];
       let contact_name = extract?.contact_name;
       let phone_number = extract?.phone_number;
       let property_type = extract?.property_type || 'דירה';
       let listing_type = extract?.listing_type;
-<<<<<<< HEAD
-      let images: string[] = [];
-
-      console.log('Extracted data:', extract);
-
-      // Fallback to manual parsing if extract didn't work well
-=======
       let images: string[] = extract?.images || [];
 
       console.log('JSON extraction result:', extract ? 'Available' : 'Not available');
@@ -571,7 +488,6 @@ export class Yad2ScraperFirecrawl {
       }
 
       // Fallback to manual parsing if JSON extraction didn't work well
->>>>>>> 50984b7 (Working version finally)
       if (price === 0 || !title) {
         console.log('Falling back to manual parsing...');
 
@@ -643,11 +559,7 @@ export class Yad2ScraperFirecrawl {
 
       // Create description if missing
       if (!description) {
-<<<<<<< HEAD
-        const descLines = markdown.split('\n').filter((line) => line.trim().length > 20);
-=======
         const descLines = markdown.split('\n').filter(line => line.trim().length > 20);
->>>>>>> 50984b7 (Working version finally)
         if (descLines.length > 0) {
           description = descLines.slice(0, 3).join(' ').substring(0, 500);
         }
@@ -669,13 +581,8 @@ export class Yad2ScraperFirecrawl {
           )
           .slice(0, 10);
       }
-<<<<<<< HEAD
-
-      // Add screenshot if available
-=======
       
       // Add screenshot if available and no other images
->>>>>>> 50984b7 (Working version finally)
       if (screenshot && images.length === 0) {
         images.push(screenshot);
       }
@@ -723,34 +630,20 @@ export class Yad2ScraperFirecrawl {
         title: title || 'דירה',
         price,
         currency: '₪',
-<<<<<<< HEAD
-        location,
-        city: city || location.split(',')[0].trim(),
-=======
         location: fullLocation,
         city: processedCity || fullLocation.split(',')[0].trim(),
->>>>>>> 50984b7 (Working version finally)
         rooms,
         floor,
         size_sqm: size,
         description: description || markdown.substring(0, 500),
         property_type,
         image_urls: images,
-<<<<<<< HEAD
-        amenities,
-        contact_name,
-        phone_number,
-        listing_url: url,
-        listing_type: listing_type || (url.includes('forsale') ? 'sale' : 'rent'),
-        source_platform: 'yad2',
-=======
         amenities: [...new Set(finalAmenities)], // Remove duplicates
         contact_name,
         phone_number,
         listing_url: url,
         listing_type: listing_type as 'rent' | 'sale',
         source_platform: 'yad2'
->>>>>>> 50984b7 (Working version finally)
       };
     } catch (error) {
       console.error('Error scraping single listing:', error);

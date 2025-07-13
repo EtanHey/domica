@@ -95,7 +95,8 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                 <div>
                   <h1 className="text-2xl font-bold">
                     {(() => {
-                      const { city, neighborhood } = property.property_location || {};
+                      const locationData = Array.isArray(property.property_location) ? property.property_location[0] : property.property_location;
+                      const { city, neighborhood } = locationData || {};
                       const location = city && neighborhood ? `${city}, ${neighborhood}` : (neighborhood || city);
                       const rooms = property.bedrooms ? `${property.bedrooms} חדרים` : '';
                       const size = property.square_meters ? `${property.square_meters} מ\"ר` : '';
@@ -131,9 +132,9 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                 <div className="text-muted-foreground flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
                   <span>
-                    {property.property_location?.formatted_address ||
-                      property.property_location?.address ||
-                      `${property.property_location?.neighborhood || ''} ${property.property_location?.city || ''}`.trim() ||
+                    {(Array.isArray(property.property_location) ? property.property_location[0] : property.property_location)?.formatted_address ||
+                      (Array.isArray(property.property_location) ? property.property_location[0] : property.property_location)?.address ||
+                      `${(Array.isArray(property.property_location) ? property.property_location[0] : property.property_location)?.neighborhood || ''} ${(Array.isArray(property.property_location) ? property.property_location[0] : property.property_location)?.city || ''}`.trim() ||
                       'מיקום לא צוין'}
                   </span>
                 </div>
@@ -392,9 +393,9 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                             {dup.title}
                           </Link>
                           <p className="text-muted-foreground mt-1 text-sm">
-                            {dup.property_location?.formatted_address ||
-                              dup.property_location?.address ||
-                              `${dup.property_location?.neighborhood || ''} ${dup.property_location?.city || ''}`.trim() ||
+                            {(Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.formatted_address ||
+                              (Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.address ||
+                              `${(Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.neighborhood || ''} ${(Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.city || ''}`.trim() ||
                               'מיקום לא צוין'}{' '}
                             • {formatPrice(dup.price_per_month)}
                             {property.listing_type === 'rent' && '/חודש'}

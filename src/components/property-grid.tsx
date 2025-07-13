@@ -18,12 +18,14 @@ import {
 // AI-DEV: Main grid component for displaying property listings
 // <scratchpad>Uses custom hook with TanStack Query for data fetching</scratchpad>
 
+import { ListingType, ListingTypeValue } from '@/types/listing';
+
 interface PropertyGridProps {
-  listingType?: 'all' | 'rent' | 'sale' | 'review';
+  listingType?: ListingTypeValue;
   initialPage?: number;
 }
 
-export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyGridProps) {
+export function PropertyGrid({ listingType = ListingType.All, initialPage = 1 }: PropertyGridProps) {
   const [page, setPage] = useState(initialPage);
   const router = useRouter();
   const pathname = usePathname();
@@ -37,12 +39,22 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
 
-    // Build the new URL based on listing type
+    // Build the new URL based on listing type and current path
     let newPath = '';
-    if (listingType === 'all') {
-      newPath = `/${newPage}`;
+    if (pathname.includes('/scraping-poc')) {
+      // We're in the scraping-poc section
+      if (listingType === ListingType.All) {
+        newPath = `/scraping-poc/${newPage}`;
+      } else {
+        newPath = `/scraping-poc/${listingType}/${newPage}`;
+      }
     } else {
-      newPath = `/${listingType}/${newPage}`;
+      // Original routing for other sections
+      if (listingType === ListingType.All) {
+        newPath = `/${newPage}`;
+      } else {
+        newPath = `/${listingType}/${newPage}`;
+      }
     }
 
     // Navigate without auto-scroll, then smooth scroll manually
@@ -58,9 +70,9 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
   const filters = {
     page,
     limit: 20,
-    ...(listingType === 'rent' && { listingType: 'rent' as const }),
-    ...(listingType === 'sale' && { listingType: 'sale' as const }),
-    ...(listingType === 'review' && { duplicateStatus: 'review' as const }),
+    ...(listingType === ListingType.Rent && { listingType: 'rent' as const }),
+    ...(listingType === ListingType.Sale && { listingType: 'sale' as const }),
+    ...(listingType === ListingType.Review && { duplicateStatus: 'review' as const }),
   };
 
   const { data, isLoading, error } = useProperties(filters);
@@ -101,11 +113,11 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
     <div className="space-y-4">
       <p dir="rtl" className="text-muted-foreground">
         מציג {activeProperties.length} מתוך {data.totalCount}{' '}
-        {listingType === 'rent'
+        {listingType === ListingType.Rent
           ? 'דירות להשכרה'
-          : listingType === 'sale'
+          : listingType === ListingType.Sale
             ? 'דירות למכירה'
-            : listingType === 'review'
+            : listingType === ListingType.Review
               ? 'נכסים לבדיקה'
               : 'נכסים'}
         {page > 1 && ` (עמוד ${page})`}
@@ -121,14 +133,12 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
       </div>
 
       {totalPages > 1 && (
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex justify-center" dir="rtl">
           <Pagination>
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  href={
-                    page > 1 ? `${listingType === 'all' ? '' : `/${listingType}`}/${page - 1}` : '#'
-                  }
+                  href="#"
                   onClick={(e) => {
                     e.preventDefault();
                     if (page > 1) handlePageChange(page - 1);
@@ -148,7 +158,7 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
                   return (
                     <PaginationItem key={pageNum}>
                       <PaginationLink
-                        href={`${listingType === 'all' ? '' : `/${listingType}`}/${pageNum}`}
+                        href="#"
                         onClick={(e) => {
                           e.preventDefault();
                           if (pageNum !== page) {
@@ -173,11 +183,7 @@ export function PropertyGrid({ listingType = 'all', initialPage = 1 }: PropertyG
 
               <PaginationItem>
                 <PaginationNext
-                  href={
-                    page < totalPages
-                      ? `${listingType === 'all' ? '' : `/${listingType}`}/${page + 1}`
-                      : '#'
-                  }
+                  href="#"
                   onClick={(e) => {
                     e.preventDefault();
                     if (page < totalPages) handlePageChange(page + 1);
