@@ -9,7 +9,7 @@ export class Yad2ScraperPlaywright {
 
   async initialize() {
     console.log('🚀 Initializing ULTRA-STEALTH Playwright scraper...');
-    
+
     try {
       // Launch browser with MAXIMUM stealth configuration
       this.browser = await chromium.launch({
@@ -35,14 +35,15 @@ export class Yad2ScraperPlaywright {
           '--disable-images', // Faster loading
           '--aggressive-cache-discard',
           '--memory-pressure-off',
-          '--max_old_space_size=4096'
-        ]
+          '--max_old_space_size=4096',
+        ],
       });
 
       // Create context with ISRAELI user simulation
       this.context = await this.browser.newContext({
         viewport: { width: 1920, height: 1080 },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         locale: 'he-IL',
         timezoneId: 'Asia/Jerusalem',
         geolocation: { longitude: 34.7818, latitude: 32.0853 }, // Tel Aviv coordinates
@@ -50,14 +51,15 @@ export class Yad2ScraperPlaywright {
         extraHTTPHeaders: {
           'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
           'Accept-Encoding': 'gzip, deflate, br',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
           'Cache-Control': 'max-age=0',
           'Sec-Fetch-Dest': 'document',
           'Sec-Fetch-Mode': 'navigate',
           'Sec-Fetch-Site': 'none',
           'Sec-Fetch-User': '?1',
-          'Upgrade-Insecure-Requests': '1'
-        }
+          'Upgrade-Insecure-Requests': '1',
+        },
       });
 
       console.log('✅ Ultra-stealth browser initialized');
@@ -81,7 +83,7 @@ export class Yad2ScraperPlaywright {
     }
 
     const page = await this.context.newPage();
-    
+
     try {
       console.log(`🎯 ULTRA-STEALTH scraping: ${url}`);
 
@@ -97,9 +99,9 @@ export class Yad2ScraperPlaywright {
 
       // Navigate with human-like behavior
       console.log('🚶 Human-like navigation...');
-      await page.goto(url, { 
+      await page.goto(url, {
         waitUntil: 'domcontentloaded',
-        timeout: 30000 
+        timeout: 30000,
       });
 
       // Wait for potential dynamic content
@@ -112,21 +114,21 @@ export class Yad2ScraperPlaywright {
         'div[class*="captcha"]',
         'div[class*="challenge"]',
         'text=Are you for real',
-        'text=אני אנושי'
+        'text=אני אנושי',
       ];
 
       for (const selector of captchaSelectors) {
         const captcha = await page.locator(selector).first();
         if (await captcha.isVisible()) {
           console.log('🤖 CAPTCHA detected, attempting bypass...');
-          
+
           // Try to find and click "I'm human" button
           const humanButtons = [
             'text=אני אנושי',
             'button:has-text("אני אנושי")',
             'input[type="checkbox"]',
             '.checkbox',
-            '[role="checkbox"]'
+            '[role="checkbox"]',
           ];
 
           for (const buttonSelector of humanButtons) {
@@ -134,12 +136,9 @@ export class Yad2ScraperPlaywright {
               const button = page.locator(buttonSelector).first();
               if (await button.isVisible()) {
                 console.log('🔘 Clicking human verification...');
-                
+
                 // Human-like click with delay
-                await page.mouse.move(
-                  Math.random() * 100 + 100, 
-                  Math.random() * 100 + 100
-                );
+                await page.mouse.move(Math.random() * 100 + 100, Math.random() * 100 + 100);
                 await page.waitForTimeout(500 + Math.random() * 500);
                 await button.click();
                 await page.waitForTimeout(2000 + Math.random() * 1000);
@@ -154,25 +153,26 @@ export class Yad2ScraperPlaywright {
 
       // Check if we got blocked
       const pageContent = await page.content();
-      if (pageContent.includes('Are you for real') || 
-          pageContent.includes('אני אנושי') ||
-          pageContent.includes('hCaptcha') ||
-          pageContent.includes('Access Denied')) {
+      if (
+        pageContent.includes('Are you for real') ||
+        pageContent.includes('אני אנושי') ||
+        pageContent.includes('hCaptcha') ||
+        pageContent.includes('Access Denied')
+      ) {
         console.log('⚠️ Page blocked by anti-bot protection');
         return null;
       }
 
       // Extract data using multiple strategies
       console.log('📊 Extracting property data...');
-      
+
       const listing = await this.extractListingData(page, url);
-      
+
       if (listing) {
         console.log(`✅ ULTRA-STEALTH success: ${listing.title.substring(0, 50)}...`);
       }
-      
-      return listing;
 
+      return listing;
     } catch (error) {
       console.error('❌ ULTRA-STEALTH scraping failed:', error);
       return null;
@@ -216,7 +216,6 @@ export class Yad2ScraperPlaywright {
 
       console.log('❌ All extraction strategies failed');
       return null;
-
     } catch (error) {
       console.error('Error in data extraction:', error);
       return null;
@@ -230,7 +229,12 @@ export class Yad2ScraperPlaywright {
         for (const script of scripts) {
           try {
             const data = JSON.parse(script.textContent || '');
-            if (data['@type'] === 'RealEstate' || data['@type'] === 'Product' || data.name || data.price) {
+            if (
+              data['@type'] === 'RealEstate' ||
+              data['@type'] === 'Product' ||
+              data.name ||
+              data.price
+            ) {
               return data;
             }
           } catch (e) {
@@ -253,7 +257,9 @@ export class Yad2ScraperPlaywright {
     try {
       const metaData = await page.evaluate(() => {
         const getMeta = (name: string) => {
-          const meta = document.querySelector(`meta[name="${name}"], meta[property="${name}"]`) as HTMLMetaElement;
+          const meta = document.querySelector(
+            `meta[name="${name}"], meta[property="${name}"]`
+          ) as HTMLMetaElement;
           return meta?.content || '';
         };
 
@@ -263,7 +269,7 @@ export class Yad2ScraperPlaywright {
           image: getMeta('og:image'),
           price: getMeta('product:price:amount') || getMeta('price'),
           currency: getMeta('product:price:currency'),
-          url: getMeta('og:url') || window.location.href
+          url: getMeta('og:url') || window.location.href,
         };
       });
 
@@ -286,47 +292,31 @@ export class Yad2ScraperPlaywright {
             '[data-testid="title"]',
             '.title',
             '[class*="title"]',
-            '[class*="heading"]'
+            '[class*="heading"]',
           ],
           price: [
             '[data-testid="price"]',
             '.price',
             '[class*="price"]',
             'span:has-text("₪")',
-            'div:has-text("₪")'
+            'div:has-text("₪")',
           ],
-          rooms: [
-            '[data-testid="rooms"]',
-            'span:has-text("חדרים")',
-            'div:has-text("חדרים")'
-          ],
-          size: [
-            'span:has-text("מ״ר")',
-            'div:has-text("מ״ר")',
-            '[class*="size"]'
-          ],
-          floor: [
-            'span:has-text("קומה")',
-            'div:has-text("קומה")'
-          ],
+          rooms: ['[data-testid="rooms"]', 'span:has-text("חדרים")', 'div:has-text("חדרים")'],
+          size: ['span:has-text("מ״ר")', 'div:has-text("מ״ר")', '[class*="size"]'],
+          floor: ['span:has-text("קומה")', 'div:has-text("קומה")'],
           location: [
             '[data-testid="location"]',
             '.location',
             '[class*="location"]',
-            '[class*="address"]'
+            '[class*="address"]',
           ],
           description: [
             '[data-testid="description"]',
             '.description',
             '[class*="description"]',
-            'p'
+            'p',
           ],
-          images: [
-            'img[src*="yad2"]',
-            'img[src*="img"]',
-            '.image img',
-            '[class*="image"] img'
-          ]
+          images: ['img[src*="yad2"]', 'img[src*="img"]', '.image img', '[class*="image"] img'],
         };
 
         const extractText = (selectors: string[]): string => {
@@ -342,7 +332,7 @@ export class Yad2ScraperPlaywright {
         const extractImages = (): string[] => {
           const images: string[] = [];
           const imgElements = document.querySelectorAll('img');
-          imgElements.forEach(img => {
+          imgElements.forEach((img) => {
             const src = img.src || img.getAttribute('data-src');
             if (src && (src.includes('yad2') || src.includes('img'))) {
               images.push(src);
@@ -360,7 +350,7 @@ export class Yad2ScraperPlaywright {
           location: extractText(selectors.location),
           description: extractText(selectors.description),
           images: extractImages(),
-          fullText: document.body.textContent || ''
+          fullText: document.body.textContent || '',
         };
       });
 
@@ -383,7 +373,7 @@ export class Yad2ScraperPlaywright {
         price: /(\d{1,3}(?:,\d{3})*)\s*₪/,
         rooms: /(\d+)\s*חדרים/,
         size: /(\d+)\s*מ[״"]ר/,
-        floor: /קומה\s*(\d+)/
+        floor: /קומה\s*(\d+)/,
       };
 
       const extracted: any = {};
@@ -391,13 +381,14 @@ export class Yad2ScraperPlaywright {
       for (const [key, pattern] of Object.entries(patterns)) {
         const match = textContent.match(pattern);
         if (match) {
-          extracted[key] = key === 'price' ? parseInt(match[1].replace(/,/g, '')) : parseInt(match[1]);
+          extracted[key] =
+            key === 'price' ? parseInt(match[1].replace(/,/g, '')) : parseInt(match[1]);
         }
       }
 
       if (extracted.price || extracted.rooms) {
         const id = url.match(/item\/([a-zA-Z0-9]+)/)?.[1] || `yad2_${Date.now()}`;
-        
+
         return {
           id,
           title: `דירת ${extracted.rooms || 3} חדרים`,
@@ -414,7 +405,7 @@ export class Yad2ScraperPlaywright {
           amenities: [],
           listing_url: url,
           listing_type: url.includes('forsale') ? 'sale' : 'rent',
-          source_platform: 'yad2'
+          source_platform: 'yad2',
         };
       }
     } catch (error) {
@@ -425,7 +416,7 @@ export class Yad2ScraperPlaywright {
 
   private convertJsonLdToListing(data: any, url: string): ScrapedListing {
     const id = url.match(/item\/([a-zA-Z0-9]+)/)?.[1] || `yad2_${Date.now()}`;
-    
+
     return {
       id,
       title: data.name || data.title || 'נכס',
@@ -442,13 +433,13 @@ export class Yad2ScraperPlaywright {
       amenities: [],
       listing_url: url,
       listing_type: url.includes('forsale') ? 'sale' : 'rent',
-      source_platform: 'yad2'
+      source_platform: 'yad2',
     };
   }
 
   private convertMetaToListing(data: any, url: string): ScrapedListing {
     const id = url.match(/item\/([a-zA-Z0-9]+)/)?.[1] || `yad2_${Date.now()}`;
-    
+
     return {
       id,
       title: data.title || 'נכס',
@@ -465,21 +456,21 @@ export class Yad2ScraperPlaywright {
       amenities: [],
       listing_url: url,
       listing_type: url.includes('forsale') ? 'sale' : 'rent',
-      source_platform: 'yad2'
+      source_platform: 'yad2',
     };
   }
 
   private convertDomToListing(data: any, url: string): ScrapedListing {
     const id = url.match(/item\/([a-zA-Z0-9]+)/)?.[1] || `yad2_${Date.now()}`;
-    
+
     // Extract price from text
     const priceMatch = data.price.match(/(\d{1,3}(?:,\d{3})*)/);
     const price = priceMatch ? parseInt(priceMatch[1].replace(/,/g, '')) : 0;
-    
+
     // Extract rooms from text
     const roomsMatch = data.rooms.match(/(\d+)/);
     const rooms = roomsMatch ? parseInt(roomsMatch[1]) : 3;
-    
+
     return {
       id,
       title: data.title || `דירת ${rooms} חדרים`,
@@ -496,7 +487,7 @@ export class Yad2ScraperPlaywright {
       amenities: [],
       listing_url: url,
       listing_type: url.includes('forsale') ? 'sale' : 'rent',
-      source_platform: 'yad2'
+      source_platform: 'yad2',
     };
   }
 
@@ -509,7 +500,7 @@ export class Yad2ScraperPlaywright {
     }
 
     const page = await this.context.newPage();
-    
+
     try {
       console.log(`🔍 ULTRA-STEALTH search scraping: ${url}`);
 
@@ -524,9 +515,9 @@ export class Yad2ScraperPlaywright {
       });
 
       // Navigate with human behavior
-      await page.goto(url, { 
+      await page.goto(url, {
         waitUntil: 'domcontentloaded',
-        timeout: 30000 
+        timeout: 30000,
       });
 
       // Wait for content to load
@@ -536,14 +527,14 @@ export class Yad2ScraperPlaywright {
       const listingUrls = await page.evaluate((maxResults: number) => {
         const urls: string[] = [];
         const links = document.querySelectorAll('a[href*="/realestate/item/"]');
-        
+
         links.forEach((link) => {
           const href = (link as HTMLAnchorElement).href;
           if (href && !urls.includes(href) && urls.length < maxResults) {
             urls.push(href);
           }
         });
-        
+
         return urls;
       }, limit);
 
@@ -555,11 +546,11 @@ export class Yad2ScraperPlaywright {
 
       for (let i = 0; i < listingUrls.length; i += concurrency) {
         const batch = listingUrls.slice(i, i + concurrency);
-        
+
         const batchPromises = batch.map(async (listingUrl) => {
           try {
             // Add random delay between requests
-            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+            await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 2000));
             return await this.scrapeSingleListing(listingUrl);
           } catch (error) {
             console.error(`Failed to scrape ${listingUrl}:`, error);
@@ -568,13 +559,14 @@ export class Yad2ScraperPlaywright {
         });
 
         const batchResults = await Promise.all(batchPromises);
-        const validListings = batchResults.filter((listing): listing is ScrapedListing => listing !== null);
+        const validListings = batchResults.filter(
+          (listing): listing is ScrapedListing => listing !== null
+        );
         listings.push(...validListings);
       }
 
       console.log(`✅ ULTRA-STEALTH extracted ${listings.length}/${listingUrls.length} listings`);
       return listings;
-
     } catch (error) {
       console.error('❌ ULTRA-STEALTH search failed:', error);
       return [];

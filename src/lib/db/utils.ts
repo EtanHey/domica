@@ -51,7 +51,7 @@ export function transformProperty(dbProperty: any) {
 
   // Handle property_location array - take first item if array
   if (transformed.propertyLocation) {
-    transformed.location = Array.isArray(transformed.propertyLocation) 
+    transformed.location = Array.isArray(transformed.propertyLocation)
       ? transformed.propertyLocation[0] || null
       : transformed.propertyLocation;
     delete transformed.propertyLocation;

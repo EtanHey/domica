@@ -20,7 +20,7 @@ export class Yad2ScraperJSON {
    */
   async extractListingUrls(searchUrl: string, limit = 10): Promise<string[]> {
     console.log(`🔍 Step 1: Extracting listing URLs from search page (limit: ${limit})`);
-    
+
     try {
       const listingUrls = await this.findListingUrls(searchUrl, limit);
       console.log(`✅ Found ${listingUrls.length} listing URLs`);
@@ -36,7 +36,7 @@ export class Yad2ScraperJSON {
    */
   async scrapeListings(listingUrls: string[]): Promise<ScrapedListing[]> {
     console.log(`🏠 Step 2: Scraping ${listingUrls.length} individual listings in parallel`);
-    
+
     if (listingUrls.length === 0) {
       return [];
     }
@@ -44,20 +44,22 @@ export class Yad2ScraperJSON {
     // Use Promise.all for parallel scraping with concurrency control
     const concurrency = 3; // Limit concurrent requests to avoid overwhelming Firecrawl
     const listings: ScrapedListing[] = [];
-    
+
     for (let i = 0; i < listingUrls.length; i += concurrency) {
       const batch = listingUrls.slice(i, i + concurrency);
-      console.log(`Processing batch ${Math.floor(i/concurrency) + 1}/${Math.ceil(listingUrls.length/concurrency)} (${batch.length} listings)`);
-      
+      console.log(
+        `Processing batch ${Math.floor(i / concurrency) + 1}/${Math.ceil(listingUrls.length / concurrency)} (${batch.length} listings)`
+      );
+
       const batchPromises = batch.map(async (url, index) => {
         try {
           console.log(`  Scraping ${i + index + 1}/${listingUrls.length}: ${url}`);
-          
+
           // Add small delay to be respectful to the server
           if (index > 0) {
-            await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+            await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 500));
           }
-          
+
           const listing = await this.scrapeSingleListing(url);
           if (listing) {
             console.log(`  ✅ Success: ${listing.title.substring(0, 50)}...`);
@@ -66,7 +68,11 @@ export class Yad2ScraperJSON {
         } catch (error) {
           // Better error categorization
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('unreachable')) {
+          if (
+            errorMsg.includes('timeout') ||
+            errorMsg.includes('network') ||
+            errorMsg.includes('unreachable')
+          ) {
             console.warn(`  ⏱️ Network timeout for ${url}`);
           } else if (errorMsg.includes('captcha') || errorMsg.includes('blocked')) {
             console.warn(`  🤖 Blocked/Captcha detected for ${url}`);
@@ -76,14 +82,16 @@ export class Yad2ScraperJSON {
           return null;
         }
       });
-      
+
       const batchResults = await Promise.all(batchPromises);
-      const validListings = batchResults.filter((listing): listing is ScrapedListing => listing !== null);
+      const validListings = batchResults.filter(
+        (listing): listing is ScrapedListing => listing !== null
+      );
       listings.push(...validListings);
-      
+
       // Small delay between batches to be respectful
       if (i + concurrency < listingUrls.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -100,7 +108,7 @@ export class Yad2ScraperJSON {
     try {
       // Step 1: Get listing URLs
       const listingUrls = await this.extractListingUrls(url, limit);
-      
+
       if (listingUrls.length === 0) {
         console.log('No listing URLs found on search page');
         return [];
@@ -108,7 +116,7 @@ export class Yad2ScraperJSON {
 
       // Step 2: Scrape all listings in parallel
       const listings = await this.scrapeListings(listingUrls);
-      
+
       console.log(`🎉 Two-step process complete: ${listings.length} listings extracted`);
       return listings;
     } catch (error) {
@@ -138,20 +146,21 @@ export class Yad2ScraperJSON {
         timeout: 60000, // Extended timeout
         // ISRAEL-FOCUSED STEALTH HEADERS
         headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'he-IL,he;q=0.9,ar;q=0.8,en-US;q=0.7,en;q=0.6',
           'Accept-Encoding': 'gzip, deflate, br',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0',
           'Sec-Fetch-Dest': 'document',
           'Sec-Fetch-Mode': 'navigate',
           'Sec-Fetch-Site': 'none',
           'Upgrade-Insecure-Requests': '1',
           'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          Pragma: 'no-cache',
         },
         location: {
           country: 'IL',
-          languages: ['he', 'ar', 'en']
+          languages: ['he', 'ar', 'en'],
         },
       });
 
@@ -169,8 +178,15 @@ export class Yad2ScraperJSON {
       }
 
       // Check for captcha in the raw content
-      const content = ('html' in result ? result.html : '') || ('markdown' in result ? result.markdown : '') || '';
-      if (content.includes('hCaptcha') || content.includes('Are you for real') || content.includes('אני אנושי')) {
+      const content =
+        ('html' in result ? result.html : '') ||
+        ('markdown' in result ? result.markdown : '') ||
+        '';
+      if (
+        content.includes('hCaptcha') ||
+        content.includes('Are you for real') ||
+        content.includes('אני אנושי')
+      ) {
         console.warn('🤖 Captcha detected in raw content, Yad2 is blocking the request');
         return null;
       }
@@ -189,18 +205,18 @@ export class Yad2ScraperJSON {
   private parseHTMLContent(content: string, url: string): ScrapedListing | null {
     try {
       console.log('🔧 Attempting local HTML parsing...');
-      
+
       // Extract basic info using regex patterns
       const id = url.match(/item\/([a-zA-Z0-9]+)/)?.[1] || `yad2_${Date.now()}`;
-      
+
       // Try to extract title (look for common patterns)
       const titlePatterns = [
         /<title[^>]*>([^<]+)</i,
         /<h1[^>]*>([^<]+)</i,
         /<h2[^>]*>([^<]+)</i,
-        /class="[^"]*title[^"]*"[^>]*>([^<]+)</i
+        /class="[^"]*title[^"]*"[^>]*>([^<]+)</i,
       ];
-      
+
       let title = 'Property Listing';
       for (const pattern of titlePatterns) {
         const match = content.match(pattern);
@@ -209,31 +225,32 @@ export class Yad2ScraperJSON {
           break;
         }
       }
-      
+
       // Extract price (look for numbers with ₪ or price indicators)
       const pricePatterns = [
         /(\d{1,3}(?:,\d{3})*)\s*₪/g,
         /price[^>]*>.*?(\d{1,3}(?:,\d{3})*)/gi,
-        /מחיר[^>]*>.*?(\d{1,3}(?:,\d{3})*)/gi
+        /מחיר[^>]*>.*?(\d{1,3}(?:,\d{3})*)/gi,
       ];
-      
+
       let price = 0;
       for (const pattern of pricePatterns) {
         const matches = [...content.matchAll(pattern)];
         for (const match of matches) {
           const priceNum = parseInt(match[1].replace(/,/g, ''));
-          if (priceNum > 1000 && priceNum < 50000) { // Reasonable rent range
+          if (priceNum > 1000 && priceNum < 50000) {
+            // Reasonable rent range
             price = priceNum;
             break;
           }
         }
         if (price > 0) break;
       }
-      
+
       // If we found any real data, return a basic listing
       if (title.length > 5 && (price > 0 || content.length > 1000)) {
         console.log(`✅ Local parsing found: "${title.substring(0, 50)}..." price: ${price}`);
-        
+
         return {
           id,
           title,
@@ -252,13 +269,12 @@ export class Yad2ScraperJSON {
           phone_number: undefined,
           listing_url: url,
           listing_type: url.includes('forsale') ? 'sale' : 'rent',
-          source_platform: 'yad2'
+          source_platform: 'yad2',
         };
       }
-      
+
       console.warn('❌ Local parsing failed - insufficient data extracted');
       return null;
-      
     } catch (error) {
       console.error('Error in local HTML parsing:', error);
       return null;
@@ -339,7 +355,11 @@ export class Yad2ScraperJSON {
       entry_date: z.string().nullable().describe('Entry date if specified'),
 
       // Images
-      images: z.array(z.string()).describe('Array of REAL image URLs from THIS SPECIFIC LISTING ONLY. Must be actual Yad2 image URLs (img.yad2.co.il, etc.) starting with http:// or https://. DO NOT include placeholder URLs like "example.com", "image1.jpg", or template images. Return empty array if no real images found.'),
+      images: z
+        .array(z.string())
+        .describe(
+          'Array of REAL image URLs from THIS SPECIFIC LISTING ONLY. Must be actual Yad2 image URLs (img.yad2.co.il, etc.) starting with http:// or https://. DO NOT include placeholder URLs like "example.com", "image1.jpg", or template images. Return empty array if no real images found.'
+        ),
     });
   }
 
@@ -361,14 +381,16 @@ export class Yad2ScraperJSON {
         const listingUrls = mapResult.links
           .filter((url: string) => {
             // Only include actual listing URLs, not search pages or captcha
-            return url.includes('/realestate/item/') && 
-                   !url.includes('/realestate/rent') && 
-                   !url.includes('/realestate/forsale') &&
-                   !url.includes('hcaptcha') &&
-                   !url.includes('captcha');
+            return (
+              url.includes('/realestate/item/') &&
+              !url.includes('/realestate/rent') &&
+              !url.includes('/realestate/forsale') &&
+              !url.includes('hcaptcha') &&
+              !url.includes('captcha')
+            );
           })
           .slice(0, limit);
-        
+
         if (listingUrls.length > 0) {
           console.log(`Map API found ${listingUrls.length} listing URLs`);
           return listingUrls;
@@ -377,7 +399,6 @@ export class Yad2ScraperJSON {
 
       console.log('Map API returned no results, trying fallback extraction...');
       return await this.fallbackLinkExtraction(searchUrl, limit);
-
     } catch (error) {
       console.error('Map API error:', error);
       console.log('Falling back to direct HTML extraction...');
@@ -390,7 +411,7 @@ export class Yad2ScraperJSON {
    */
   private async fallbackLinkExtraction(searchUrl: string, limit: number): Promise<string[]> {
     console.log('Using optimized fallback link extraction...');
-    
+
     try {
       const searchResult = await this.firecrawl.scrapeUrl(searchUrl, {
         formats: ['links', 'html'],
@@ -421,14 +442,16 @@ export class Yad2ScraperJSON {
 
         for (const link of searchResult.links) {
           // Direct listing URLs (filter out captcha)
-          if (link.includes('/realestate/item/') && 
-              !link.includes('hcaptcha') && 
-              !link.includes('captcha') && 
-              !listingUrls.includes(link)) {
+          if (
+            link.includes('/realestate/item/') &&
+            !link.includes('hcaptcha') &&
+            !link.includes('captcha') &&
+            !listingUrls.includes(link)
+          ) {
             listingUrls.push(link);
             console.log('Found direct listing URL:', link);
           }
-          
+
           // Look for URLs with open-item-id parameters
           const itemIdMatch = link.match(/open-item-id=([a-zA-Z0-9]+)/);
           if (itemIdMatch) {
@@ -443,7 +466,7 @@ export class Yad2ScraperJSON {
             }
           }
 
-          // Look for data-item-id attributes in URLs  
+          // Look for data-item-id attributes in URLs
           const dataItemMatch = link.match(/data-item-id[=\s]*[\"\']*([a-zA-Z0-9]+)[\"\']*/);
           if (dataItemMatch) {
             const itemId = dataItemMatch[1];
@@ -476,7 +499,7 @@ export class Yad2ScraperJSON {
           // Additional patterns for different Yad2 structures
           /"itemId"[:\s]*"([a-zA-Z0-9]+)"/g,
           /'itemId'[:\s]*'([a-zA-Z0-9]+)'/g,
-          /itemId[:\s]*([a-zA-Z0-9]+)/g
+          /itemId[:\s]*([a-zA-Z0-9]+)/g,
         ];
 
         for (const pattern of patterns) {
@@ -492,14 +515,13 @@ export class Yad2ScraperJSON {
               }
             }
           }
-          
+
           if (listingUrls.length >= limit) break;
         }
       }
 
       console.log(`Fallback extraction found ${listingUrls.length} listing URLs`);
       return listingUrls.slice(0, limit);
-      
     } catch (error) {
       console.error('Error in fallback extraction:', error);
       return [];
@@ -511,7 +533,7 @@ export class Yad2ScraperJSON {
       // Extract ID from URL - only handle Yad2 patterns
       let id: string;
       const itemIdMatch = url.match(/item\/([a-zA-Z0-9]+)/);
-      
+
       if (itemIdMatch) {
         id = itemIdMatch[1];
       } else {
@@ -519,11 +541,12 @@ export class Yad2ScraperJSON {
       }
 
       // Detect captcha content
-      const isCaptcha = url.includes('hcaptcha') || 
-                       url.includes('captcha') ||
-                       (jsonData.description && jsonData.description.includes('hCaptcha')) ||
-                       (jsonData.title && jsonData.title.includes('captcha')) ||
-                       (jsonData.description && jsonData.description.includes('אני אנושי'));
+      const isCaptcha =
+        url.includes('hcaptcha') ||
+        url.includes('captcha') ||
+        (jsonData.description && jsonData.description.includes('hCaptcha')) ||
+        (jsonData.title && jsonData.title.includes('captcha')) ||
+        (jsonData.description && jsonData.description.includes('אני אנושי'));
 
       if (isCaptcha) {
         console.warn('Captcha detected in content, skipping:', url);
@@ -539,17 +562,24 @@ export class Yad2ScraperJSON {
       // Validate against common placeholder data
       const invalidCities = ['תל אביב', 'ירושלים', 'חיפה']; // Common examples used in templates
       const invalidImages = ['example.com', 'image1.jpg', 'image2.jpg', 'placeholder'];
-      
+
       // Filter out placeholder images
       const validImages = (jsonData.images || []).filter((img: string) => {
-        return img && 
-               img.startsWith('http') && 
-               !invalidImages.some(invalid => img.includes(invalid)) &&
-               (img.includes('yad2.co.il') || img.includes('img.yad2') || img.includes('utfs.io'));
+        return (
+          img &&
+          img.startsWith('http') &&
+          !invalidImages.some((invalid) => img.includes(invalid)) &&
+          (img.includes('yad2.co.il') || img.includes('img.yad2') || img.includes('utfs.io'))
+        );
       });
 
       // Warn if we got a common placeholder city (unless URL suggests it's actually that city)
-      if (invalidCities.includes(jsonData.city) && !url.includes('tel-aviv') && !url.includes('jerusalem') && !url.includes('haifa')) {
+      if (
+        invalidCities.includes(jsonData.city) &&
+        !url.includes('tel-aviv') &&
+        !url.includes('jerusalem') &&
+        !url.includes('haifa')
+      ) {
         console.warn(`Potentially extracted placeholder city "${jsonData.city}" for URL: ${url}`);
       }
 

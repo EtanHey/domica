@@ -95,27 +95,33 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                 <div>
                   <h1 className="text-2xl font-bold">
                     {(() => {
-                      const locationData = Array.isArray(property.property_location) ? property.property_location[0] : property.property_location;
+                      const locationData = Array.isArray(property.property_location)
+                        ? property.property_location[0]
+                        : property.property_location;
                       const { city, neighborhood } = locationData || {};
-                      const location = city && neighborhood ? `${city}, ${neighborhood}` : (neighborhood || city);
+                      const location =
+                        city && neighborhood ? `${city}, ${neighborhood}` : neighborhood || city;
                       const rooms = property.bedrooms ? `${property.bedrooms} חדרים` : '';
                       const size = property.square_meters ? `${property.square_meters} מ\"ר` : '';
                       const type = property.property_type || '';
-                      
+
                       // Build enhanced title
                       let enhancedTitle = property.title;
-                      
+
                       // Add location if not already in title
                       if (location && !property.title.includes(location.split(',')[0])) {
                         enhancedTitle = `${enhancedTitle} ב${location}`;
                       }
-                      
+
                       // Add key details if not already present
                       const details = [rooms, size, type].filter(Boolean);
-                      if (details.length > 0 && !details.some(detail => property.title.includes(detail))) {
+                      if (
+                        details.length > 0 &&
+                        !details.some((detail) => property.title.includes(detail))
+                      ) {
                         enhancedTitle = `${enhancedTitle} | ${details.join(' | ')}`;
                       }
-                      
+
                       return enhancedTitle;
                     })()}
                   </h1>
@@ -132,8 +138,14 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                 <div className="text-muted-foreground flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
                   <span>
-                    {(Array.isArray(property.property_location) ? property.property_location[0] : property.property_location)?.formatted_address ||
-                      (Array.isArray(property.property_location) ? property.property_location[0] : property.property_location)?.address ||
+                    {(Array.isArray(property.property_location)
+                      ? property.property_location[0]
+                      : property.property_location
+                    )?.formatted_address ||
+                      (Array.isArray(property.property_location)
+                        ? property.property_location[0]
+                        : property.property_location
+                      )?.address ||
                       `${(Array.isArray(property.property_location) ? property.property_location[0] : property.property_location)?.neighborhood || ''} ${(Array.isArray(property.property_location) ? property.property_location[0] : property.property_location)?.city || ''}`.trim() ||
                       'מיקום לא צוין'}
                   </span>
@@ -188,7 +200,9 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                   {property.property_amenities.parking > 0 && (
                     <Badge variant="secondary">
                       <CheckCircle className="ml-1 h-3 w-3" />
-                      חניה{property.property_amenities.parking > 1 && ` (${property.property_amenities.parking})`}
+                      חניה
+                      {property.property_amenities.parking > 1 &&
+                        ` (${property.property_amenities.parking})`}
                     </Badge>
                   )}
                   {property.property_amenities.elevator && (
@@ -200,13 +214,17 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                   {property.property_amenities.balcony > 0 && (
                     <Badge variant="secondary">
                       <CheckCircle className="ml-1 h-3 w-3" />
-                      מרפסת{property.property_amenities.balcony > 1 && ` (${property.property_amenities.balcony})`}
+                      מרפסת
+                      {property.property_amenities.balcony > 1 &&
+                        ` (${property.property_amenities.balcony})`}
                     </Badge>
                   )}
                   {property.property_amenities.garden > 0 && (
                     <Badge variant="secondary">
                       <CheckCircle className="ml-1 h-3 w-3" />
-                      גינה{property.property_amenities.garden > 1 && ` (${property.property_amenities.garden})`}
+                      גינה
+                      {property.property_amenities.garden > 1 &&
+                        ` (${property.property_amenities.garden})`}
                     </Badge>
                   )}
                   {property.property_amenities.air_conditioning && (
@@ -393,8 +411,14 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                             {dup.title}
                           </Link>
                           <p className="text-muted-foreground mt-1 text-sm">
-                            {(Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.formatted_address ||
-                              (Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.address ||
+                            {(Array.isArray(dup.property_location)
+                              ? dup.property_location[0]
+                              : dup.property_location
+                            )?.formatted_address ||
+                              (Array.isArray(dup.property_location)
+                                ? dup.property_location[0]
+                                : dup.property_location
+                              )?.address ||
                               `${(Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.neighborhood || ''} ${(Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.city || ''}`.trim() ||
                               'מיקום לא צוין'}{' '}
                             • {formatPrice(dup.price_per_month)}

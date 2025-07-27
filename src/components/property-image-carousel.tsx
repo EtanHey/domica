@@ -21,15 +21,19 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   const sortedImages = images?.sort((a, b) => (a.image_order || 0) - (b.image_order || 0)) || [];
 
   // Filter out invalid image URLs and prioritize UploadThing URLs
-  const validImages = sortedImages.filter(img => {
-    return img?.image_url && 
-           typeof img.image_url === 'string' && 
-           !img.image_url.startsWith('data:') && 
-           (img.image_url.includes('utfs.io') || 
-            img.image_url.includes('uploadthing.') || 
-            img.image_url.includes('ufs.sh') || 
-            (img.image_url.startsWith('http') && !img.image_url.includes('yad2.co.il') && !img.image_url.includes('img.yad2')) ||
-            img.image_url.startsWith('/'));
+  const validImages = sortedImages.filter((img) => {
+    return (
+      img?.image_url &&
+      typeof img.image_url === 'string' &&
+      !img.image_url.startsWith('data:') &&
+      (img.image_url.includes('utfs.io') ||
+        img.image_url.includes('uploadthing.') ||
+        img.image_url.includes('ufs.sh') ||
+        (img.image_url.startsWith('http') &&
+          !img.image_url.includes('yad2.co.il') &&
+          !img.image_url.includes('img.yad2')) ||
+        img.image_url.startsWith('/'))
+    );
   });
 
   const primaryImage = validImages.find((img) => img.is_primary) || validImages[0];
@@ -39,7 +43,7 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
 
   console.log('Final processed images:', {
     allImages,
-    allImageUrls: allImages.map(img => img.image_url)
+    allImageUrls: allImages.map((img) => img.image_url),
   });
 
   // Preload all images when component mounts using Next.js optimized URLs
@@ -48,19 +52,19 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
       if (image.image_url) {
         // Create Next.js optimized image URL for preloading
         const optimizedUrl = `/_next/image?url=${encodeURIComponent(image.image_url)}&w=800&q=75`;
-        
+
         const link = document.createElement('link');
         link.rel = 'preload';
         link.as = 'image';
         link.href = optimizedUrl;
         document.head.appendChild(link);
-        
+
         console.log(`🎯 Preloading optimized image ${index + 1}:`, optimizedUrl);
-        
+
         // Also track load status
         const img = new window.Image();
         img.onload = () => {
-          setImageLoadStatus(prev => ({ ...prev, [index]: true }));
+          setImageLoadStatus((prev) => ({ ...prev, [index]: true }));
         };
         img.src = optimizedUrl;
       }
@@ -95,13 +99,13 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   return (
     <div className="w-full">
       {/* Main Carousel - Simple approach without Embla */}
-      <div className="relative overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 w-full">
+      <div className="relative w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
         <div className="relative h-[300px] md:h-[400px]">
           {allImages.map((image, index) => (
-            <div 
-              key={`${image.image_url}-${index}`} 
+            <div
+              key={`${image.image_url}-${index}`}
               className={`absolute inset-0 transition-opacity duration-300 ${
-                index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                index === currentIndex ? 'z-10 opacity-100' : 'z-0 opacity-0'
               }`}
             >
               <Image
@@ -113,7 +117,7 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
                 loading="eager" // Load all images eagerly for carousel
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 onLoad={() => {
-                  setImageLoadStatus(prev => ({ ...prev, [index]: true }));
+                  setImageLoadStatus((prev) => ({ ...prev, [index]: true }));
                   console.log(`✅ Main carousel image ${index + 1} loaded:`, image?.image_url);
                 }}
                 onError={() => {
@@ -133,14 +137,14 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
         {allImages.length > 1 && (
           <>
             <button
-              className="absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-lg backdrop-blur-sm transition-all hover:bg-white dark:bg-black/90 dark:hover:bg-black z-20"
+              className="absolute top-1/2 right-4 z-20 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-lg backdrop-blur-sm transition-all hover:bg-white dark:bg-black/90 dark:hover:bg-black"
               onClick={goToPrevious}
               aria-label="תמונה קודמת"
             >
               <ChevronRight className="h-5 w-5 text-gray-800 dark:text-white" />
             </button>
             <button
-              className="absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-lg backdrop-blur-sm transition-all hover:bg-white dark:bg-black/90 dark:hover:bg-black z-20"
+              className="absolute top-1/2 left-4 z-20 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-lg backdrop-blur-sm transition-all hover:bg-white dark:bg-black/90 dark:hover:bg-black"
               onClick={goToNext}
               aria-label="תמונה הבאה"
             >
@@ -156,10 +160,10 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
           {allImages.map((_, index) => (
             <button
               key={index}
-              className={`h-3 rounded-full transition-all shadow-lg ${
-                index === currentIndex 
-                  ? 'w-8 bg-white/50 scale-110' 
-                  : 'w-3 bg-white/30 hover:bg-white border border-gray-300'
+              className={`h-3 rounded-full shadow-lg transition-all ${
+                index === currentIndex
+                  ? 'w-8 scale-110 bg-white/50'
+                  : 'w-3 border border-gray-300 bg-white/30 hover:bg-white'
               }`}
               onClick={() => goToSlide(index)}
               aria-label={`עבור לתמונה ${index + 1}`}

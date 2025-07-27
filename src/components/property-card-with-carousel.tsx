@@ -27,17 +27,23 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
 
   const imageUrls =
     sortedImages.length > 0
-      ? sortedImages.map((img) => img.imageUrl).filter(url => {
-          // Only allow UploadThing URLs and valid HTTP URLs, filter out Yad2 URLs and SVGs
-          return url && 
-                 typeof url === 'string' && 
-                 !url.startsWith('data:') && 
-                 !url.toLowerCase().endsWith('.svg') &&
-                 (url.includes('utfs.io') || 
-                  url.includes('uploadthing.') || 
-                  url.includes('ufs.sh') || // Add support for new UploadThing domain
-                  (url.startsWith('http') && !url.includes('yad2.co.il') && !url.includes('img.yad2')));
-        })
+      ? sortedImages
+          .map((img) => img.imageUrl)
+          .filter((url) => {
+            // Only allow UploadThing URLs and valid HTTP URLs, filter out Yad2 URLs and SVGs
+            return (
+              url &&
+              typeof url === 'string' &&
+              !url.startsWith('data:') &&
+              !url.toLowerCase().endsWith('.svg') &&
+              (url.includes('utfs.io') ||
+                url.includes('uploadthing.') ||
+                url.includes('ufs.sh') || // Add support for new UploadThing domain
+                (url.startsWith('http') &&
+                  !url.includes('yad2.co.il') &&
+                  !url.includes('img.yad2')))
+            );
+          })
       : [];
 
   // If no valid URLs, use fallback
@@ -143,7 +149,9 @@ export function PropertyCardWithCarousel({ property }: PropertyCardProps) {
 
       <div className="p-4">
         <Link href={`/property/${property.id}`}>
-          <h3 className="mb-2 line-clamp-2 text-lg font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">{property.title}</h3>
+          <h3 className="mb-2 line-clamp-2 cursor-pointer text-lg font-semibold transition-colors hover:text-blue-600 dark:hover:text-blue-400">
+            {property.title}
+          </h3>
         </Link>
 
         <p className="mb-2 text-2xl font-bold text-blue-600 dark:text-blue-400">

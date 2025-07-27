@@ -51,7 +51,8 @@
       "Bash(git add:*)",
       "mcp__domica-notion__API-post-search",
       "mcp__domica-notion__API-patch-block-children",
-      "mcp__domica-notion__API-delete-a-block"
+      "mcp__domica-notion__API-delete-a-block",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   },

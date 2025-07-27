@@ -153,7 +153,7 @@ export class Yad2Scraper {
 
       const scrapedListings = await this.scraper.scrapeListings(urls);
       const yad2Listings = scrapedListings
-        .map(listing => this.convertToYad2Listing(listing))
+        .map((listing) => this.convertToYad2Listing(listing))
         .filter((listing): listing is Yad2Listing => listing !== null);
 
       return yad2Listings;
@@ -178,13 +178,13 @@ export class Yad2Scraper {
         console.log('Using enhanced two-step scraping...');
         const scrapedListings = await this.scraper.scrapeSearchResultsWithTwoStep(url, maxListings);
         console.log(`Found ${scrapedListings.length} listings via two-step approach`);
-        return scrapedListings.map(listing => this.convertToYad2Listing(listing));
+        return scrapedListings.map((listing) => this.convertToYad2Listing(listing));
       } else {
         // Fallback to original method
         console.log('Using legacy scraping method...');
         const scrapedListings = await this.scraper.scrapeSearchResults(url, maxListings);
         console.log(`Found ${scrapedListings.length} listings`);
-        return scrapedListings.map(listing => this.convertToYad2Listing(listing));
+        return scrapedListings.map((listing) => this.convertToYad2Listing(listing));
       }
     } catch (error) {
       console.error('Error scraping Yad2:', error);
@@ -311,7 +311,7 @@ export class Yad2Scraper {
         // Insert property location data
         if (property) {
           // Parse location string to extract components
-          const locationParts = listing.location.split(',').map(s => s.trim());
+          const locationParts = listing.location.split(',').map((s) => s.trim());
           let city = locationParts[locationParts.length - 1];
           let neighborhood = '';
           let address = '';
@@ -424,26 +424,26 @@ export class Yad2Scraper {
         if (property && listing.amenities.length > 0) {
           // Map Hebrew amenity names to boolean fields
           const amenityMapping = {
-            'חניה': 'parking',
-            'מעלית': 'elevator', 
-            'מרפסת': 'balcony',
+            חניה: 'parking',
+            מעלית: 'elevator',
+            מרפסת: 'balcony',
             'מיזוג אוויר': 'air_conditioning',
-            'מזגן': 'ac_unit',
-            'חימום': 'heating',
-            'אינטרנט': 'internet',
-            'כביסה': 'laundry',
+            מזגן: 'ac_unit',
+            חימום: 'heating',
+            אינטרנט: 'internet',
+            כביסה: 'laundry',
             'מטבח מצויד': 'equipped_kitchen',
-            'מקלחת': 'shower',
-            'אמבטיה': 'bathtub',
-            'מחסן': 'storage',
-            'גינה': 'garden',
-            'מאובטח': 'secured',
+            מקלחת: 'shower',
+            אמבטיה: 'bathtub',
+            מחסן: 'storage',
+            גינה: 'garden',
+            מאובטח: 'secured',
             'נגיש לנכים': 'accessible',
-            'סורגים': 'bars',
+            סורגים: 'bars',
             'דלת פלדה': 'steel_door',
-            'חצר': 'yard',
-            'גג': 'roof',
-            'ממ"ד': 'safe_room'
+            חצר: 'yard',
+            גג: 'roof',
+            'ממ"ד': 'safe_room',
           };
 
           // Create amenities object with boolean values
@@ -468,11 +468,11 @@ export class Yad2Scraper {
             accessible: false,
             bars: false,
             steel_door: false,
-            safe_room: false
+            safe_room: false,
           };
 
           // Set amenities to true based on listing
-          listing.amenities.forEach(amenity => {
+          listing.amenities.forEach((amenity) => {
             const field = amenityMapping[amenity as keyof typeof amenityMapping];
             if (field) {
               if (field === 'parking' || field === 'balcony' || field === 'garden') {

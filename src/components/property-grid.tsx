@@ -23,9 +23,14 @@ import { ListingType, ListingTypeValue } from '@/types/listing';
 interface PropertyGridProps {
   listingType?: ListingTypeValue;
   initialPage?: number;
+  sourcePlatform?: 'yad2' | 'facebook';
 }
 
-export function PropertyGrid({ listingType = ListingType.All, initialPage = 1 }: PropertyGridProps) {
+export function PropertyGrid({
+  listingType = ListingType.All,
+  initialPage = 1,
+  sourcePlatform,
+}: PropertyGridProps) {
   const [page, setPage] = useState(initialPage);
   const router = useRouter();
   const pathname = usePathname();
@@ -66,13 +71,14 @@ export function PropertyGrid({ listingType = ListingType.All, initialPage = 1 }:
     }, 50);
   };
 
-  // Build filters based on listing type
+  // Build filters based on listing type and source platform
   const filters = {
     page,
     limit: 20,
     ...(listingType === ListingType.Rent && { listingType: 'rent' as const }),
     ...(listingType === ListingType.Sale && { listingType: 'sale' as const }),
     ...(listingType === ListingType.Review && { duplicateStatus: 'review' as const }),
+    ...(sourcePlatform && { sourcePlatform }),
   };
 
   const { data, isLoading, error } = useProperties(filters);

@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Home, Search } from 'lucide-react';
+import { HeaderNav } from '@/components/header-nav';
 
 // Use Rubik font which supports Hebrew
 const rubik = Rubik({
@@ -40,27 +40,12 @@ export default function RootLayout({
               <header className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                 <div className="container mx-auto px-4 py-4">
                   <div className="flex items-center justify-between">
-                    <nav className="flex items-center gap-6">
-                      <Link 
-                        href="/" 
-                        className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <Home className="h-5 w-5" />
-                        בית
-                      </Link>
-                      <Link 
-                        href="/scraping-poc" 
-                        className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <Search className="h-5 w-5" />
-                        PoC חיפוש
-                      </Link>
-                    </nav>
-                    <Link href="/" className="hover:opacity-80 transition-opacity">
-                      <Image 
-                        src="/domica_logo.png" 
-                        alt="דומיקה - Domica" 
-                        width={160} 
+                    <HeaderNav />
+                    <Link href="/" className="transition-opacity hover:opacity-80">
+                      <Image
+                        src="/domica_logo.png"
+                        alt="דומיקה - Domica"
+                        width={160}
                         height={40}
                         className="h-10 w-auto"
                         priority
