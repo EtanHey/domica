@@ -17,9 +17,60 @@ export async function POST(request: NextRequest) {
 
     const savedProperties = [];
     const errors = [];
+    const duplicates = [];
 
     for (const property of propertiesToSave) {
       try {
+        // Check for duplicates before saving
+        const pricePerMonth = parseFloat(property.pricePerMonth) || 0;
+        const phoneNormalized = property.contactPhone?.replace(/\D/g, '') || null;
+        
+        // Build duplicate check query
+        let duplicateQuery = supabase
+          .from('properties')
+          .select('id, title, source_platform')
+          .eq('price_per_month', pricePerMonth)
+          .eq('bedrooms', property.bedrooms || null)
+          .eq('source_platform', 'facebook')
+          .eq('is_active', true);
+          
+        // Add phone check if available
+        if (phoneNormalized) {
+          duplicateQuery = duplicateQuery.eq('phone_normalized', phoneNormalized);
+        }
+        
+        const { data: existingProperties, error: duplicateCheckError } = await duplicateQuery;
+        
+        if (duplicateCheckError) {
+          console.error('Duplicate check error:', duplicateCheckError);
+        } else if (existingProperties && existingProperties.length > 0) {
+          // Check location similarity for potential duplicates
+          if (property.locationText) {
+            const [newCity] = property.locationText.split(',').map((s: string) => s.trim());
+            
+            // Get locations for existing properties
+            const propertyIds = existingProperties.map(p => p.id);
+            const { data: locations } = await supabase
+              .from('property_location')
+              .select('property_id, city, neighborhood')
+              .in('property_id', propertyIds);
+              
+            // Check if any have matching city
+            const isDuplicate = locations?.some(loc => 
+              loc.city?.toLowerCase() === newCity?.toLowerCase()
+            );
+            
+            if (isDuplicate) {
+              duplicates.push({
+                property: property.title,
+                reason: 'דירה דומה כבר קיימת במערכת',
+                existing: existingProperties[0].title
+              });
+              continue; // Skip this property
+            }
+          }
+        }
+
         // Prepare property data
         const propertyData = {
           title: property.title,
@@ -130,11 +181,48 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Determine overall success based on whether any properties were saved
+    const success = savedProperties.length > 0;
+    const hasErrors = errors.length > 0;
+    const hasDuplicates = duplicates.length > 0;
+
+    // If all properties failed to save, return error status
+    if (savedProperties.length === 0 && errors.length > 0 && duplicates.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to save any properties',
+          details: errors,
+        },
+        { status: 500 }
+      );
+    }
+
+    // Build detailed message
+    let message = '';
+    if (savedProperties.length > 0) {
+      message += `נשמרו ${savedProperties.length} דירות חדשות`;
+    }
+    if (hasDuplicates) {
+      message += message ? ', ' : '';
+      message += `${duplicates.length} דירות כבר קיימות במערכת`;
+    }
+    if (hasErrors) {
+      message += message ? ', ' : '';
+      message += `${errors.length} דירות נכשלו`;
+    }
+    message = message || 'לא נשמרו דירות חדשות';
+
+    // Return with appropriate status
     return NextResponse.json({
-      success: true,
+      success,
       count: savedProperties.length,
+      total: propertiesToSave.length,
+      duplicatesFound: duplicates.length,
       properties: savedProperties,
-      errors: errors.length > 0 ? errors : undefined,
+      errors: hasErrors ? errors : undefined,
+      duplicates: hasDuplicates ? duplicates : undefined,
+      message,
     });
   } catch (error: any) {
     console.error('API error:', error);

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PropertyCard } from '@/components/property-card';
-import { Save, CheckCircle, Upload, Loader2, FileText } from 'lucide-react';
+import { Save, CheckCircle, Upload, Loader2, FileText, ImageIcon, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -63,6 +63,9 @@ export function FacebookParser() {
   const [savedCount, setSavedCount] = useState(0);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
   const [selectedProperties, setSelectedProperties] = useState<Set<string>>(new Set());
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [inputMode, setInputMode] = useState<'text' | 'image'>('text');
+  const [useGoogleAI, setUseGoogleAI] = useState(true); // Use Google Document AI by default
   const { toast } = useToast();
 
   const mockProperties: Property[] = [
@@ -114,6 +117,108 @@ export function FacebookParser() {
     },
   ];
 
+  const compressImage = async (dataUrl: string, maxSizeMB: number = 3): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Calculate size reduction if needed - use larger dimension for better text clarity
+        const maxDimension = 3000; // Increased for better text recognition
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height / width) * maxDimension;
+            width = maxDimension;
+          } else {
+            width = (width / height) * maxDimension;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Start with high quality for better text recognition
+        let quality = 0.95;
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        
+        // Reduce quality minimally to preserve text clarity
+        while (compressedDataUrl.length > maxSizeMB * 1024 * 1024 * 1.37 && quality > 0.7) {
+          quality -= 0.05;
+          compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        
+        resolve(compressedDataUrl);
+      };
+      img.src = dataUrl;
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+
+    for (const file of files) {
+      const isSupported = supportedTypes.some(type => 
+        file.type === type || file.type === type.replace('jpg', 'jpeg')
+      );
+      
+      if (isSupported) {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const dataUrl = event.target?.result as string;
+          
+          // For PDFs or when using Google AI, no compression needed
+          if (file.type === 'application/pdf' || useGoogleAI) {
+            setUploadedImages((prev) => [...prev, dataUrl]);
+          } else {
+            // Check size and compress if needed for Claude
+            const sizeInMB = dataUrl.length / (1024 * 1024);
+            if (sizeInMB > 3) {
+              toast({
+                title: '🔄 דחיסת תמונה',
+                description: 'התמונה גדולה מדי, מבצע דחיסה...',
+              });
+              
+              try {
+                const compressedDataUrl = await compressImage(dataUrl, 3);
+                setUploadedImages((prev) => [...prev, compressedDataUrl]);
+                toast({
+                  title: '✅ הצלחה',
+                  description: 'התמונה נדחסה והועלתה בהצלחה',
+                });
+              } catch (error) {
+                toast({
+                  title: '❌ שגיאה',
+                  description: 'שגיאה בדחיסת התמונה',
+                  variant: 'destructive',
+                });
+              }
+            } else {
+              setUploadedImages((prev) => [...prev, dataUrl]);
+            }
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        toast({
+          title: '❌ שגיאה',
+          description: 'נא להעלות קבצי תמונה (JPG, PNG, WEBP, GIF) או PDF בלבד',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleParsePosts = async () => {
     setError('');
     setIsLoading(true);
@@ -121,7 +226,7 @@ export function FacebookParser() {
     setSavedCount(0);
 
     try {
-      if (!rawPosts.trim()) {
+      if (inputMode === 'text' && !rawPosts.trim()) {
         toast({
           title: '❌ שגיאה',
           description: 'אנא הדבק פוסטים לניתוח',
@@ -131,14 +236,31 @@ export function FacebookParser() {
         return;
       }
 
+      if (inputMode === 'image' && uploadedImages.length === 0) {
+        toast({
+          title: '❌ שגיאה',
+          description: 'אנא העלה תמונות לניתוח',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Call AI parsing API
-      const response = await fetch('/api/parse-rental-posts', {
+      const apiEndpoint = inputMode === 'image' && useGoogleAI 
+        ? '/api/parse-rental-posts-google' 
+        : '/api/parse-rental-posts';
+      
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          posts: rawPosts,
+          posts: inputMode === 'text' ? rawPosts : undefined,
+          images: inputMode === 'image' && !useGoogleAI ? uploadedImages : undefined,
+          documents: inputMode === 'image' && useGoogleAI ? uploadedImages : undefined,
+          mode: inputMode,
         }),
       });
 
@@ -218,18 +340,39 @@ export function FacebookParser() {
 
       setSavedCount(data.count);
       setShowSelectionModal(false);
+
+      // Show appropriate message based on results
+      if (data.duplicates && data.duplicates.length > 0) {
+        console.log('Duplicates found:', data.duplicates);
+      }
+      
+      if (data.errors && data.errors.length > 0) {
+        console.error('Save errors:', data.errors);
+      }
+      
+      // Choose toast variant based on outcome
+      let toastVariant: 'default' | 'destructive' = 'default';
+      let toastTitle = '✅ הפעולה הושלמה';
+      
+      if (data.count === 0 && data.duplicatesFound > 0) {
+        toastTitle = '⚠️ לא נוספו דירות חדשות';
+      } else if (data.errors && data.errors.length > 0) {
+        toastTitle = '⚠️ שמירה חלקית';
+      }
       
       toast({
-        title: '✅ נשמר בהצלחה',
-        description: `${data.count} דירות נשמרו במאגר`,
+        title: toastTitle,
+        description: data.message,
+        variant: toastVariant,
       });
 
-      // Clear properties after successful save
+      // Clear properties after save (even if partial)
       setTimeout(() => {
         setParsedProperties([]);
         setRawPosts('');
         setSavedCount(0);
         setSelectedProperties(new Set());
+        setUploadedImages([]);
       }, 3000);
     } catch (err: any) {
       toast({
@@ -267,20 +410,72 @@ export function FacebookParser() {
             <AccordionTrigger className="px-6 py-4 hover:no-underline">
               <div className="flex flex-col items-start text-left">
                 <h3 className="text-lg font-semibold">ניתוח פוסטים מפייסבוק עם AI</h3>
-                <p className="text-muted-foreground text-sm">העתק פוסטים והמערכת תנתח אותם באמצעות Claude AI</p>
+                <p className="text-muted-foreground text-sm">
+                  העתק פוסטים והמערכת תנתח אותם באמצעות Claude AI
+                </p>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-6 pb-4">
               <div className="space-y-4">
                 <Alert>
                   <AlertDescription>
-                    <strong>איך זה עובד:</strong> העתק פוסטים מקבוצות פייסבוק (Ctrl+C) והדבק למטה.
+                    <strong>איך זה עובד:</strong> 
                     <br />
-                    <strong>Claude AI</strong> ינתח את הטקסט ויחלץ מחיר, מספר חדרים, מיקום ופרטים נוספים.
+                    <strong>לטקסט:</strong> העתק פוסטים מקבוצות פייסבוק (Ctrl+C) והדבק למטה
+                    <br />
+                    <strong>לתמונות/PDF:</strong> 
+                    <ol className="list-decimal list-inside mt-2 space-y-1">
+                      <li>פתח את קבוצת הפייסבוק</li>
+                      <li>השתמש בסקריפט להרחבת "עוד" (ראה הוראות למטה)</li>
+                      <li>צלם מסך או שמור כ-PDF</li>
+                      <li>העלה את הקובץ כאן</li>
+                    </ol>
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-sm font-medium hover:text-blue-600">
+                        📖 הוראות להרחבת פוסטים בפייסבוק
+                      </summary>
+                      <div className="mt-2 text-sm space-y-2 bg-gray-50 dark:bg-gray-900 p-3 rounded">
+                        <p><strong>שיטה מהירה:</strong></p>
+                        <code className="block p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto">
+                          document.querySelectorAll('div[role="button"]').forEach(b =&gt; {'{'}
+                            if (b.textContent?.match(/עוד|See more/)) b.click();
+                          {'}'});
+                        </code>
+                        <p className="text-xs mt-2">
+                          1. לחץ F12 בדפדפן → Console
+                          <br />
+                          2. הדבק את הקוד ולחץ Enter
+                          <br />
+                          3. חכה שכל הפוסטים יורחבו
+                          <br />
+                          4. צלם מסך (F12 → Ctrl+Shift+P → "screenshot")
+                        </p>
+                      </div>
+                    </details>
                   </AlertDescription>
                 </Alert>
 
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-2">
+                    <Button
+                      variant={inputMode === 'text' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setInputMode('text')}
+                      className="gap-2"
+                    >
+                      <FileText className="h-4 w-4" />
+                      טקסט
+                    </Button>
+                    <Button
+                      variant={inputMode === 'image' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setInputMode('image')}
+                      className="gap-2"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      תמונות
+                    </Button>
+                  </div>
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -288,7 +483,7 @@ export function FacebookParser() {
                       onChange={(e) => setTestMode(e.target.checked)}
                       className="rounded"
                     />
-                    מצב בדיקה (נתונים לדוגמה)
+                    מצב בדיקה
                   </label>
                 </div>
 
@@ -321,9 +516,11 @@ export function FacebookParser() {
                       <div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
                       <span className="text-xs font-medium">פוסט דוגמה - דירת 3 חדרים</span>
                     </div>
-                    <code className="text-muted-foreground block font-mono text-xs whitespace-pre-wrap" dir="rtl">
-                      שלום לכולם 🏠
-                      דירת 3 חדרים להשכרה במודיעין...
+                    <code
+                      className="text-muted-foreground block font-mono text-xs whitespace-pre-wrap"
+                      dir="rtl"
+                    >
+                      שלום לכולם 🏠 דירת 3 חדרים להשכרה במודיעין...
                     </code>
                   </div>
 
@@ -349,45 +546,122 @@ export function FacebookParser() {
                       <div className="h-2 w-2 animate-pulse rounded-full bg-purple-500"></div>
                       <span className="text-xs font-medium">פוסט דוגמה - דירת 4 חדרים</span>
                     </div>
-                    <code className="text-muted-foreground block font-mono text-xs whitespace-pre-wrap" dir="rtl">
-                      להשכרה דחוף!!
-                      4 חד׳ במרכז מודיעין...
+                    <code
+                      className="text-muted-foreground block font-mono text-xs whitespace-pre-wrap"
+                      dir="rtl"
+                    >
+                      להשכרה דחוף!! 4 חד׳ במרכז מודיעין...
                     </code>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="facebook-posts">הדבק פוסטים מפייסבוק</Label>
-                  <div className="relative">
-                    <FileText className="text-muted-foreground absolute top-2.5 left-2 h-4 w-4" />
-                    <Textarea
-                      id="facebook-posts"
-                      placeholder="הדבק כאן פוסטים של דירות להשכרה מפייסבוק..."
-                      value={rawPosts}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                        setRawPosts(e.target.value)
-                      }
-                      className="min-h-[200px] pl-8"
-                      dir="rtl"
-                      disabled={isLoading}
-                    />
-                  </div>
+                  {inputMode === 'text' ? (
+                    <>
+                      <Label htmlFor="facebook-posts">הדבק פוסטים מפייסבוק</Label>
+                      <div className="relative">
+                        <FileText className="text-muted-foreground absolute top-2.5 left-2 h-4 w-4" />
+                        <Textarea
+                          id="facebook-posts"
+                          placeholder="הדבק כאן פוסטים של דירות להשכרה מפייסבוק..."
+                          value={rawPosts}
+                          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                            setRawPosts(e.target.value)
+                          }
+                          className="min-h-[200px] pl-8"
+                          dir="rtl"
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="image-upload">העלה תמונות או PDF</Label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={useGoogleAI}
+                            onChange={(e) => setUseGoogleAI(e.target.checked)}
+                            className="rounded"
+                          />
+                          השתמש ב-Google AI (מומלץ ל-PDF)
+                        </label>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="rounded-lg border-2 border-dashed p-6 text-center">
+                          <input
+                            id="image-upload"
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,application/pdf"
+                            multiple
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            disabled={isLoading}
+                          />
+                          <label
+                            htmlFor="image-upload"
+                            className="flex cursor-pointer flex-col items-center gap-2"
+                          >
+                            <ImageIcon className="text-muted-foreground h-8 w-8" />
+                            <span className="text-muted-foreground text-sm">
+                              לחץ להעלאת תמונות או PDF
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                              {useGoogleAI 
+                                ? 'PDF, PNG, JPG, WEBP, GIF • Google AI לזיהוי טקסט מדויק'
+                                : 'PNG, JPG, WEBP, GIF • תמונות גדולות ידחסו אוטומטית'}
+                            </span>
+                          </label>
+                        </div>
+
+                        {uploadedImages.length > 0 && (
+                          <div className="grid grid-cols-2 gap-4">
+                            {uploadedImages.map((image, index) => (
+                              <div key={index} className="group relative">
+                                <img
+                                  src={image}
+                                  alt={`Upload ${index + 1}`}
+                                  className="h-32 w-full rounded-lg border object-cover"
+                                />
+                                <button
+                                  onClick={() => removeImage(index)}
+                                  className="absolute top-2 right-2 rounded-full bg-red-500 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <Button
                   onClick={testMode ? handleTestMode : handleParsePosts}
-                  disabled={isLoading || (!rawPosts.trim() && !testMode)}
+                  disabled={
+                    isLoading ||
+                    (!testMode &&
+                      ((inputMode === 'text' && !rawPosts.trim()) ||
+                        (inputMode === 'image' && uploadedImages.length === 0)))
+                  }
                   className="w-full"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {testMode ? 'טוען נתונים לדוגמה...' : 'מנתח פוסטים עם AI...'}
+                      {testMode
+                        ? 'טוען נתונים לדוגמה...'
+                        : `מנתח ${inputMode === 'image' ? 'תמונות' : 'פוסטים'} עם AI...`}
                     </>
                   ) : (
                     <>
                       <Upload className="mr-2 h-4 w-4" />
-                      {testMode ? 'הצג נתונים לדוגמה' : 'נתח פוסטים עם AI'}
+                      {testMode
+                        ? 'הצג נתונים לדוגמה'
+                        : `נתח ${inputMode === 'image' ? 'תמונות' : 'פוסטים'} עם AI`}
                     </>
                   )}
                 </Button>

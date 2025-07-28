@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Domica Facebook Scraper",
+  "version": "1.0",
+  "description": "Extract rental posts from Facebook groups",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.facebook.com/*",
+    "https://facebook.com/*",
+    "http://www.facebook.com/*",
+    "http://facebook.com/*",
+    "http://localhost:3001/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.facebook.com/groups/*",
+        "https://facebook.com/groups/*",
+        "http://www.facebook.com/groups/*",
+        "http://facebook.com/groups/*"
+      ],
+      "js": ["smart-content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

@@ -8,10 +8,14 @@ const anthropic = new Anthropic({
 
 export async function POST(request: NextRequest) {
   try {
-    const { posts } = await request.json();
+    const { posts, images, mode = 'text' } = await request.json();
 
-    if (!posts || typeof posts !== 'string') {
+    if (mode === 'text' && (!posts || typeof posts !== 'string')) {
       return NextResponse.json({ error: 'Invalid posts data' }, { status: 400 });
+    }
+
+    if (mode === 'image' && (!images || !Array.isArray(images) || images.length === 0)) {
+      return NextResponse.json({ error: 'No images provided' }, { status: 400 });
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -46,21 +50,77 @@ Filter out any posts where isDuplicate is true.
 If a post is not about rental property, set isValid to false.
 Be lenient with parsing - extract whatever information is available.`;
 
-    const userPrompt = `Parse these Facebook rental posts into structured data:
+    let messages: any[] = [];
+
+    if (mode === 'text') {
+      const userPrompt = `Parse these Facebook rental posts into structured data:
 
 ${posts}`;
-
-    const message = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 4000,
-      temperature: 0,
-      system: systemPrompt,
-      messages: [
+      messages = [
         {
           role: 'user',
           content: userPrompt,
         },
-      ],
+      ];
+    } else {
+      // For image mode, we need to send images to Claude
+      const imageContents = images.map((imageDataUrl: string) => {
+        // Extract the base64 data from the data URL
+        const base64Match = imageDataUrl.match(/^data:(.+);base64,(.+)$/);
+        if (!base64Match) {
+          throw new Error('Invalid image data URL');
+        }
+        let mediaType = base64Match[1];
+        const base64Data = base64Match[2];
+
+        // Map common media types to Claude-supported formats
+        const mediaTypeMap: Record<string, string> = {
+          'image/jpg': 'image/jpeg',
+          'image/svg+xml': 'image/png', // Convert SVG to PNG on client side
+          'application/pdf': 'image/png', // PDFs need to be converted to images
+        };
+
+        // Apply mapping if needed
+        if (mediaTypeMap[mediaType]) {
+          mediaType = mediaTypeMap[mediaType];
+        }
+
+        // Validate media type
+        const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!supportedTypes.includes(mediaType)) {
+          throw new Error(`Unsupported image type: ${mediaType}. Supported types: ${supportedTypes.join(', ')}`);
+        }
+
+        return {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mediaType,
+            data: base64Data,
+          },
+        };
+      });
+
+      messages = [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Please analyze these screenshots of Facebook rental posts and extract all rental listings. Look for Hebrew text posts about apartments for rent. IMPORTANT: Extract the EXACT city/location mentioned in each post - do not assume or guess locations. If no city is mentioned, use "לא צוין" (not specified). Common cities include מודיעין, ירושלים, תל אביב, חיפה, etc. Extract all properties you can find in the images.',
+            },
+            ...imageContents,
+          ],
+        },
+      ];
+    }
+
+    const message = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 4000,
+      temperature: 0,
+      system: systemPrompt,
+      messages,
     });
 
     // Extract JSON from Claude's response
