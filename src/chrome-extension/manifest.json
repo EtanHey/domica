@@ -37,7 +37,7 @@
         "http://www.facebook.com/groups/*",
         "http://facebook.com/groups/*"
       ],
-      "js": ["smart-content.js"],
+      "js": ["debug-content.js"],
       "run_at": "document_end"
     }
   ]

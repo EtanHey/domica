@@ -37,15 +37,107 @@ function extractRoomsFromText(text: string): number | null {
   return null;
 }
 
+function extractCityFromText(text: string): string | null {
+  const cities = [
+    'רחובות', 'תל אביב', 'ירושלים', 'חיפה', 'ראשון לציון', 'פתח תקווה',
+    'אשדוד', 'נתניה', 'באר שבע', 'בני ברק', 'חולון', 'רמת גן', 'אשקלון',
+    'רעננה', 'בת ים', 'כפר סבא', 'הרצליה', 'מודיעין', 'נס ציונה', 'רמלה'
+  ];
+  
+  for (const city of cities) {
+    if (text.includes(city)) {
+      return city;
+    }
+  }
+  return null;
+}
+
 function extractNeighborhoodFromText(text: string): string | null {
+  // Rehovot neighborhoods
   const neighborhoods = [
-    'מורשת', 'נופים', 'קייזר', 'הנביאים', 'אבני חן', 'ציפורים',
-    'צמח השדה', 'שמעון פרס', 'גולדה מאיר'
+    'מרמורק', 'רחובות ההולנדית', 'אושיות', 'שעריים', 'קרית משה',
+    'נווה יהודה', 'רמת אלון', 'גני הדר', 'חבצלת', 'שכונה ירוקה',
+    'דניה', 'כפר גבירול', 'גורדון', 'המדע', 'ויצמן'
   ];
   
   for (const neighborhood of neighborhoods) {
     if (text.includes(neighborhood)) {
       return neighborhood;
+    }
+  }
+  return null;
+}
+
+function extractStreetFromText(text: string): string | null {
+  const streetPatterns = [
+    /רחוב\s+([^\s,]+)/,
+    /רח[׳']\s+([^\s,]+)/,
+    /ב([^\s,]+)\s+\d+/
+  ];
+  
+  for (const pattern of streetPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
+function extractFloorFromText(text: string): number | null {
+  const patterns = [
+    /קומה\s+(\d+)/,
+    /קומה\s+([א-י])/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      // Convert Hebrew letters to numbers if needed
+      if (match[1].match(/[א-י]/)) {
+        const hebrewToNum: any = {'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9, 'י': 10};
+        return hebrewToNum[match[1]] || null;
+      }
+      return parseInt(match[1]);
+    }
+  }
+  return null;
+}
+
+function extractSizeFromText(text: string): number | null {
+  const patterns = [
+    /(\d+)\s*מ[״"'ר]/,
+    /(\d+)\s*מטר/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return parseInt(match[1]);
+    }
+  }
+  return null;
+}
+
+function extractPhoneFromText(text: string): string | null {
+  const phonePattern = /0\d{1,2}[-\s]?\d{7,8}/;
+  const match = text.match(phonePattern);
+  return match ? match[0] : null;
+}
+
+function extractDateFromText(text: string): string | null {
+  const patterns = [
+    /כניסה\s+ב?(\d{1,2}[./]\d{1,2})/,
+    /מיידית/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      if (match[0].includes('מיידית')) {
+        return 'מיידית';
+      }
+      return match[1];
     }
   }
   return null;
@@ -83,83 +175,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid posts data' }, { status: 400 });
     }
 
-    // Process each post with Claude to extract structured data
+    // Process each post with fallback extraction (skip Claude API to avoid rate limits)
     const processPromises = posts.map(async (post: any, index: number) => {
       try {
-        // Create a prompt for Claude to extract structured data
-        const prompt = `Extract rental property information from this Facebook post and return ONLY valid JSON:
-
-Author: ${post.author}
-Text: ${post.text}
-Phone numbers found: ${post.phones?.join(', ') || 'none'}
-Prices found: ${post.rawPrices?.join(', ') || 'none'}
-
-Return a JSON object with these fields (use null for missing data):
-{
-  "price": number or null,
-  "rooms": number or null,
-  "city": "מודיעין" or other city in Hebrew,
-  "neighborhood": neighborhood name in Hebrew or null,
-  "street": street name if mentioned or null,
-  "floor": floor number or null,
-  "size": size in sqm or null,
-  "amenities": ["array", "of", "amenities", "in", "Hebrew"],
-  "contactPhone": "phone number" or null,
-  "availableFrom": "date string" or null,
-  "description": "brief description in Hebrew"
-}
-
-IMPORTANT: Return ONLY the JSON object, no explanations.`;
-
-        let responseText = '';
-        try {
-          const message = await anthropic.messages.create({
-            model: 'claude-3-haiku-20240307',
-            max_tokens: 1000,
-            temperature: 0,
-            messages: [
-              {
-                role: 'user',
-                content: prompt,
-              },
-            ],
-          });
-
-          responseText = message.content[0].type === 'text' ? message.content[0].text : '';
-          console.log('Claude response:', responseText.substring(0, 200) + '...');
-        } catch (apiError) {
-          console.error('Claude API error:', apiError);
-          // Use fallback extraction without Claude
-          responseText = '';
-        }
+        // Skip Claude API and use direct extraction to avoid rate limits
+        console.log(`Processing post ${index + 1}/${posts.length} with direct extraction`);
         
-        // Parse the JSON response
-        let extractedData;
-        try {
-          // Try to extract JSON from Claude's response
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            extractedData = JSON.parse(jsonMatch[0]);
-          } else {
-            throw new Error('No JSON found in response');
-          }
-        } catch (e) {
-          console.error('Failed to parse Claude response, using fallback extraction');
-          // Fallback: Extract data directly from the post
-          extractedData = {
-            price: post.rawPrices?.[0] ? parseInt(post.rawPrices[0].replace(/,/g, '')) : null,
-            rooms: extractRoomsFromText(post.text),
-            city: 'מודיעין',
-            neighborhood: extractNeighborhoodFromText(post.text),
-            street: null,
-            floor: null,
-            size: null,
-            amenities: extractAmenitiesFromText(post.text),
-            contactPhone: post.phones?.[0] || null,
-            availableFrom: null,
-            description: post.text.substring(0, 500)
-          };
-        }
+        // Extract data directly from the post
+        const extractedData = {
+          price: post.rawPrices?.[0] ? parseInt(post.rawPrices[0].replace(/,/g, '')) : null,
+          rooms: extractRoomsFromText(post.text),
+          city: extractCityFromText(post.text) || 'רחובות',
+          neighborhood: extractNeighborhoodFromText(post.text),
+          street: extractStreetFromText(post.text),
+          floor: extractFloorFromText(post.text),
+          size: extractSizeFromText(post.text),
+          amenities: extractAmenitiesFromText(post.text),
+          contactPhone: post.phones?.[0] || extractPhoneFromText(post.text),
+          availableFrom: extractDateFromText(post.text),
+          description: post.text.substring(0, 500)
+        };
 
         // Create property object
         const property: any = {
