@@ -13,10 +13,7 @@
     "https://www.facebook.com/*",
     "https://facebook.com/*",
     "http://www.facebook.com/*",
-    "http://facebook.com/*",
-    "http://localhost:3001/*",
-    "http://localhost/*",
-    "http://127.0.0.1/*"
+    "http://facebook.com/*"
   ],
   "background": {
     "service_worker": "background.js"

@@ -3,9 +3,14 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { DuplicateDetectionService } from '@/lib/duplicate-detection';
 
-// Initialize Anthropic client
+// Initialize Anthropic client with proper validation
+const apiKey = process.env.ANTHROPIC_API_KEY;
+if (!apiKey) {
+  throw new Error('ANTHROPIC_API_KEY environment variable is required but not set');
+}
+
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
+  apiKey: apiKey,
 });
 
 // Initialize Supabase client
