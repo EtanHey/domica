@@ -199,9 +199,9 @@ async function saveToDomica() {
     // Get Domica URL from settings or use default
     const domicaUrl = 'http://localhost:3001';
     
-    // Create abort controller with 30 second timeout
+    // Create abort controller with 90 second timeout (for Claude API processing)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     
     const response = await fetch(`${domicaUrl}/api/chrome-extension/save`, {
       method: 'POST',
@@ -222,13 +222,42 @@ async function saveToDomica() {
       const data = await response.json();
       console.log('Save response:', data);
       
-      if (data.saved === 0 && data.total > 0) {
-        setStatus('warning', `לא הצלחנו לעבד את הפוסטים - נסה שוב`);
+      // Handle different response scenarios
+      const totalProcessed = (data.saved || 0) + (data.updated || 0);
+      
+      if (totalProcessed === 0 && data.total > 0 && !data.success) {
+        // Complete failure - no properties saved or updated
+        setStatus('warning', data.message || `לא הצלחנו לעבד את הפוסטים - נסה שוב`);
+        console.log('Save response:', data.message);
         saveBtn.disabled = false; // Re-enable the button
-      } else {
-        setStatus('success', `נשמרו ${data.saved} מתוך ${data.total} דירות`);
+      } else if (data.updated > 0 && data.saved === 0) {
+        // Only updates, no new properties
+        setStatus('info', `עודכנו ${data.updated} דירות קיימות`);
         
-        // Clear results
+        // Clear results after updates
+        setTimeout(() => {
+          extractedPosts = [];
+          resultsSection.classList.add('hidden');
+          setStatus('', 'מוכן לסריקה');
+        }, 3000);
+      } else if (data.saved > 0 || data.updated > 0) {
+        // New saves and/or updates
+        let message = '';
+        if (data.saved > 0) message += `נשמרו ${data.saved} דירות חדשות`;
+        if (data.updated > 0) message += `${data.saved > 0 ? ' ו' : ''}עודכנו ${data.updated} קיימות`;
+        
+        setStatus('success', message);
+        
+        // Clear results after success
+        setTimeout(() => {
+          extractedPosts = [];
+          resultsSection.classList.add('hidden');
+          setStatus('', 'מוכן לסריקה');
+        }, 3000);
+      } else {
+        // No new properties found
+        setStatus('info', data.message || 'לא נמצאו דירות חדשות לשמירה');
+        
         setTimeout(() => {
           extractedPosts = [];
           resultsSection.classList.add('hidden');

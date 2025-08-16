@@ -102,33 +102,55 @@ function isRentalOffer(text) {
   return false;
 }
 
-// Extract price from text
+// Extract price from text - looking for all prices in the text
 function extractPrice(text) {
+  debugLog('Extracting price from text:', text.substring(0, 200) + '...');
+  
+  // Look for prices in various formats - WITHOUT /g flag for single match
   const pricePatterns = [
-    /₪\s*(\d{1,2},?\d{3})/,
-    /(\d{1,2},?\d{3})\s*₪/,
-    /(\d{1,2},?\d{3})\s*ש["״]ח/,
-    /(\d{1,2},?\d{3})\s*שח/,
-    /מחיר:?\s*(\d{1,2},?\d{3})/,
-    /(\d{4,5})(?=\s|$)/
+    /(\d{4,5})₪/,                   // 5000₪ or 6300₪ (no space)
+    /₪\s*(\d{4,5})/,                // ₪5000 or ₪ 5000
+    /(\d{1,2},\d{3})₪/,             // 5,000₪ or 3,700₪
+    /₪\s*(\d{1,2},\d{3})/,          // ₪ 5,000 or ₪3,700
+    /(\d{4,5})\s*ש["״']ח/,          // 5000 ש"ח or 3900 ש״ח
+    /(\d{1,2},\d{3})\s*ש["״']ח/,    // 5,000 ש"ח
+    /שכ["״']ד\s*[-:]?\s*(\d{4,5})/, // שכ״ד 4300 or שכ"ד- 3600
+    /שכ["״']ד\s*[-:]?\s*(\d{1,2},\d{3})/, // שכ״ד 4,300
+    /מחיר:?\s*(\d{4,5})/,           // מחיר: 3900
+    /מחיר:?\s*(\d{1,2},\d{3})/,    // מחיר: 3,900
+    /שכירות\s*(\d{4,5})/,           // שכירות 5800
+    /שכירות\s*(\d{1,2},\d{3})/,    // שכירות 5,800
+    /(\d{4})(?:\s*ש["״']?ח|\s*₪|$)/, // 4500 alone or with ש"ח/₪
+    /(\d{4})\s+(?!מ["״]ר|חדר|דירה|מטר)/ // 4500 not followed by meters/rooms
   ];
   
+  // Try each pattern to find the first valid price
   for (const pattern of pricePatterns) {
     const match = text.match(pattern);
     if (match) {
-      if (pattern === pricePatterns[pricePatterns.length - 1]) {
-        const num = parseInt(match[1]);
-        if (num >= 3000 && num <= 20000) {
-          debugLog('Found price:', match[1]);
-          return match[1];
-        }
-      } else {
-        debugLog('Found price:', match[1]);
-        return match[1];
+      const priceStr = match[1];
+      const num = parseInt(priceStr.replace(/,/g, ''));
+      
+      // Validate price range (1500-20000 for rentals)
+      if (num >= 1500 && num <= 20000) {
+        debugLog(`Found price with pattern ${pattern}: ${num}`);
+        return num.toString();
       }
     }
   }
   
+  // If no pattern matched, try to find any 4-digit number in reasonable range
+  const fallbackPattern = /\b(\d{4})\b/g;
+  const fallbackMatches = text.matchAll(fallbackPattern);
+  for (const match of fallbackMatches) {
+    const num = parseInt(match[1]);
+    if (num >= 1500 && num <= 9999) {
+      debugLog(`Found price with fallback pattern: ${num}`);
+      return num.toString();
+    }
+  }
+  
+  debugLog('No valid price found in text');
   return null;
 }
 
@@ -288,20 +310,192 @@ function processVisiblePosts() {
       return;
     }
     
-    // Get author - disable for now due to Facebook's complex structure
-    // Facebook dynamically loads author names and obfuscates them, making
-    // reliable extraction very difficult. Better to show Unknown than wrong names.
+    // Get author - improved detection for Facebook's structure
     let author = 'Unknown';
     
-    // DISABLED: Author extraction is unreliable on current Facebook structure
-    // The names being picked up (like "Mozhgan") are from other elements on the page
-    // not the actual post authors. Until we can reliably extract the correct author,
-    // we'll keep all as "Unknown" to avoid confusion.
+    debugLog(`Post ${index}: Starting enhanced author search...`);
     
-    debugLog(`Post ${index}: Author extraction disabled - keeping as Unknown`);
+    // Method 1: Look for h3 elements which often contain author info in Facebook posts
+    const h3Elements = post.querySelectorAll('h3');
+    debugLog(`Post ${index}: Found ${h3Elements.length} h3 elements`);
+    
+    let authorFound = false;
+    for (const h3 of h3Elements) {
+      if (authorFound) break;
+      
+      // Look for links within h3 that lead to user profiles
+      const profileLinks = h3.querySelectorAll('a[href*="/user/"], a[href*="/profile.php"], a[href*="facebook.com/"][href*="?__tn__"]');
+      
+      for (const link of profileLinks) {
+        // Get all text nodes within the link
+        const strongElements = link.querySelectorAll('strong');
+        if (strongElements.length > 0) {
+          // Author name is often in strong tags
+          const nameText = strongElements[0].textContent?.trim();
+          if (nameText && nameText.length > 1 && nameText.length < 50) {
+            // Validate it's likely a name
+            if (!nameText.includes('·') && 
+                !nameText.match(/\d+ [a-z]/) && 
+                !nameText.includes('להשכרה') &&
+                !nameText.includes('דירות')) {
+              author = nameText;
+              authorFound = true;
+              debugLog(`Post ${index}: Found author in h3>a>strong: "${author}"`);
+              break;
+            }
+          }
+        }
+        
+        // If no strong tag, try direct text in the link
+        const linkText = link.textContent?.trim();
+        if (linkText && linkText.length > 1 && linkText.length < 50) {
+          // Extract just the name part (before any timestamps or indicators)
+          const namePart = linkText.split('·')[0].trim();
+          if (namePart && !namePart.match(/\d+ [a-z]/) && !namePart.includes('דירות')) {
+            author = namePart;
+            authorFound = true;
+            debugLog(`Post ${index}: Found author in h3>a: "${author}"`);
+            break;
+          }
+        }
+      }
+      
+      // If no profile link, check for spans that might contain the name
+      if (!authorFound) {
+        const spans = h3.querySelectorAll('span');
+        for (const span of spans) {
+          const spanText = span.textContent?.trim();
+          // Look for spans that contain just names (no timestamps, no group names)
+          if (spanText && 
+              spanText.length > 1 && 
+              spanText.length < 40 &&
+              !spanText.includes('·') &&
+              !spanText.includes('דירות') &&
+              !spanText.includes('להשכרה') &&
+              !spanText.match(/\d+ [a-z]/)) {
+            // Check if this span has a strong parent/child
+            const hasStrong = span.querySelector('strong') || span.closest('strong');
+            if (hasStrong) {
+              author = hasStrong.textContent?.trim() || spanText;
+              authorFound = true;
+              debugLog(`Post ${index}: Found author in h3 span/strong: "${author}"`);
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Method 2: If h3 didn't work, try looking for author in specific Facebook patterns
+    if (!authorFound) {
+      // Facebook pattern: Look for strong elements that aren't inside comments or reactions
+      const strongCandidates = post.querySelectorAll('strong');
+      const authorCandidates = [];
+      
+      for (const strong of strongCandidates) {
+        // Skip if it's in comments/reactions area
+        if (strong.closest('[aria-label*="Comment"]') || 
+            strong.closest('[aria-label*="תגובה"]') ||
+            strong.closest('[role="complementary"]')) {
+          continue;
+        }
+        
+        const text = strong.textContent?.trim();
+        if (text && text.length > 1 && text.length < 40) {
+          // Check if it looks like a name (not a group or keyword)
+          if (!text.includes('·') &&
+              !text.includes('דירות') &&
+              !text.includes('להשכרה') &&
+              !text.includes('₪') &&
+              !text.match(/\d{2,}/)) { // No long numbers
+            authorCandidates.push(text);
+            debugLog(`Post ${index}: Strong candidate: "${text}"`);
+          }
+        }
+      }
+      
+      // The first valid candidate is usually the author
+      if (authorCandidates.length > 0) {
+        author = authorCandidates[0];
+        authorFound = true;
+        debugLog(`Post ${index}: Selected first strong candidate as author: "${author}"`);
+      }
+    }
+    
+    // Method 3: Last resort - look for any text that appears to be a name
+    if (!authorFound) {
+      // Try to find author by looking at the post header structure
+      const headerArea = post.querySelector('div[role="article"] > div > div > div > div');
+      if (headerArea) {
+        const allTexts = [];
+        const walker = document.createTreeWalker(
+          headerArea,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode: function(node) {
+              const text = node.textContent?.trim();
+              if (text && text.length > 1 && text.length < 40) {
+                return NodeFilter.FILTER_ACCEPT;
+              }
+              return NodeFilter.FILTER_REJECT;
+            }
+          }
+        );
+        
+        let node;
+        while (node = walker.nextNode()) {
+          const text = node.textContent?.trim();
+          if (text && 
+              !text.includes('·') &&
+              !text.includes('דירות') &&
+              !text.includes('להשכרה') &&
+              !text.match(/\d+ [a-z]/) &&
+              !text.includes('₪')) {
+            allTexts.push(text);
+          }
+        }
+        
+        debugLog(`Post ${index}: Header area texts:`, allTexts.slice(0, 5));
+        
+        // Usually the author is in the first few text nodes after filtering
+        if (allTexts.length > 0) {
+          // Skip group name if it's first
+          const groupKeywords = ['דירות', 'השכרה', 'נדל"ן', 'רחובות', 'מודיעין'];
+          let idx = 0;
+          if (groupKeywords.some(kw => allTexts[0]?.includes(kw))) {
+            idx = 1;
+          }
+          
+          if (allTexts[idx]) {
+            author = allTexts[idx];
+            debugLog(`Post ${index}: Found author from header texts: "${author}"`);
+          }
+        }
+      }
+    }
+    
+    // Final validation - if we got "Facebook" or similar, mark as Unknown
+    if (author === 'Facebook' || author === 'Meta' || author.toLowerCase() === 'facebook') {
+      author = 'Unknown';
+      debugLog(`Post ${index}: Invalid author name detected, reverting to Unknown`);
+    }
+    
+    if (author === 'Unknown') {
+      debugLog(`Post ${index}: Could not identify author - keeping as Unknown`);
+      
+      // Debug: Log the first 100 chars of HTML to understand structure
+      const postHTML = post.innerHTML.substring(0, 500);
+      debugLog(`Post ${index} HTML preview for debugging:`, postHTML);
+    } else {
+      debugLog(`✅ Post ${index}: Successfully identified author: "${author}"`);
+    }
     
     // Extract price
+    debugLog(`Post ${index}: Attempting to extract price from text...`);
     const price = extractPrice(fullText);
+    if (!price) {
+      debugLog(`⚠️ Post ${index}: No price found in text that contains: "${fullText.substring(0, 300)}..."`);
+    }
     
     // Extract phone numbers
     const phones = extractPhones(fullText);

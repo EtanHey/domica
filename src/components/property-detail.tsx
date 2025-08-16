@@ -288,10 +288,17 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                   </div>
                 )}
 
-                {property.phone_normalized && (
-                  <Button className="w-full" size="lg">
+                {(property.phone_normalized || property.contact_phone) && (
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    onClick={() => {
+                      const phone = property.contact_phone || property.phone_normalized;
+                      window.location.href = `tel:${phone}`;
+                    }}
+                  >
                     <Phone className="ml-2 h-4 w-4" />
-                    צור קשר
+                    {property.contact_phone || property.phone_normalized}
                   </Button>
                 )}
 
