@@ -49,9 +49,9 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
     }
   }, [property.id, property.duplicate_status, masterProperty]);
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number, currency?: string) => {
     // Convert ₪ symbol to ILS code for Intl.NumberFormat
-    const currencyCode = property.currency === '₪' ? 'ILS' : property.currency || 'ILS';
+    const currencyCode = currency === '₪' ? 'ILS' : currency || 'ILS';
 
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
@@ -274,7 +274,7 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                     {property.listing_type === 'rent' ? 'מחיר לחודש' : 'מחיר'}
                   </p>
                   <p className="text-primary text-3xl font-bold">
-                    {formatPrice(property.price_per_month)}
+                    {formatPrice(property.price_per_month, property.currency)}
                     {property.listing_type === 'rent' && <span className="text-lg">/חודש</span>}
                   </p>
                 </div>
@@ -428,7 +428,7 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                               )?.address ||
                               `${(Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.neighborhood || ''} ${(Array.isArray(dup.property_location) ? dup.property_location[0] : dup.property_location)?.city || ''}`.trim() ||
                               'מיקום לא צוין'}{' '}
-                            • {formatPrice(dup.price_per_month)}
+                            • {formatPrice(dup.price_per_month, dup.currency)}
                             {property.listing_type === 'rent' && '/חודש'}
                           </p>
                         </div>

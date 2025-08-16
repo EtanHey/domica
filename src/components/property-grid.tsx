@@ -44,22 +44,18 @@ export function PropertyGrid({
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
 
-    // Build the new URL based on listing type and current path
+    // Build the new URL based on current section, listing type, and source platform
     let newPath = '';
     if (pathname.includes('/scraping-poc')) {
-      // We're in the scraping-poc section
-      if (listingType === ListingType.All) {
-        newPath = `/scraping-poc/${newPage}`;
-      } else {
-        newPath = `/scraping-poc/${listingType}/${newPage}`;
-      }
+      const base = `/scraping-poc${sourcePlatform ? `/${sourcePlatform}` : ''}`;
+      newPath =
+        listingType === ListingType.All
+          ? `${base}/${newPage}`
+          : `${base}/${listingType}/${newPage}`;
     } else {
       // Original routing for other sections
-      if (listingType === ListingType.All) {
-        newPath = `/${newPage}`;
-      } else {
-        newPath = `/${listingType}/${newPage}`;
-      }
+      newPath =
+        listingType === ListingType.All ? `/${newPage}` : `/${listingType}/${newPage}`;
     }
 
     // Navigate without auto-scroll, then smooth scroll manually

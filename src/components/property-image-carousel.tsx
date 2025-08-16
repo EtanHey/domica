@@ -46,29 +46,15 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
     allImageUrls: allImages.map((img) => img.image_url),
   });
 
-  // Preload all images when component mounts using Next.js optimized URLs
+  // Track image load status without manual preloading
+  // Next.js Image component handles preloading efficiently with priority and loading props
   useEffect(() => {
-    allImages.forEach((image, index) => {
-      if (image.image_url) {
-        // Create Next.js optimized image URL for preloading
-        const optimizedUrl = `/_next/image?url=${encodeURIComponent(image.image_url)}&w=800&q=75`;
-
-        const link = document.createElement('link');
-        link.rel = 'preload';
-        link.as = 'image';
-        link.href = optimizedUrl;
-        document.head.appendChild(link);
-
-        console.log(`🎯 Preloading optimized image ${index + 1}:`, optimizedUrl);
-
-        // Also track load status
-        const img = new window.Image();
-        img.onload = () => {
-          setImageLoadStatus((prev) => ({ ...prev, [index]: true }));
-        };
-        img.src = optimizedUrl;
-      }
+    // Initialize load status tracking for all images
+    const initialStatus: Record<number, boolean> = {};
+    allImages.forEach((_, index) => {
+      initialStatus[index] = false;
     });
+    setImageLoadStatus(initialStatus);
   }, [allImages]);
 
   if (allImages.length === 0) {

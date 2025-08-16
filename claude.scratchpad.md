@@ -72,3 +72,47 @@
 
 ### Ready for PR:
 All critical security issues from Claude's review have been addressed. The branch is now secure and ready for merging.
+
+## CodeRabbit Review Fixes (2025-08-16)
+
+### Additional Issues Fixed from CodeRabbit's Review:
+
+#### 4. **Currency Bug in property-detail.tsx** ✅ COMPLETED
+**Issue**: formatPrice function used closure over main property's currency for duplicates
+**Risk**: Incorrect currency display for duplicate properties with different currencies
+**Fix Implemented**:
+- ✅ Modified formatPrice to accept currency as parameter
+- ✅ Updated all call sites to pass currency explicitly
+- Status: COMPLETED
+
+#### 5. **Pagination Bug in property-grid.tsx** ✅ COMPLETED
+**Issue**: Pagination lost sourcePlatform context under /scraping-poc routes
+**Risk**: Mixed data sources when paginating (Facebook/Yad2 mixed together)
+**Fix Implemented**:
+- ✅ Updated pagination logic to preserve sourcePlatform in URL
+- ✅ Fixed URL construction to maintain source context
+- Status: COMPLETED
+
+#### 6. **Memory Leak in property-image-carousel.tsx** ✅ COMPLETED
+**Issue**: Manual preloading created DOM elements without cleanup
+**Risk**: Memory leaks from link elements never removed from document head
+**Fix Implemented**:
+- ✅ Removed manual preloading logic entirely
+- ✅ Relying on Next.js Image component's built-in optimization
+- ✅ Kept onLoad handlers for status tracking
+- Status: COMPLETED
+
+### Summary of All Fixes:
+✅ **3 Critical Security Issues** (CORS, Chrome Extension Permissions, API Key Validation)
+✅ **3 CodeRabbit Bug Fixes** (Currency display, Pagination context, Memory leak)
+
+### Total Files Modified:
+1. `middleware.ts` - CORS policy with allowlist
+2. `src/chrome-extension/manifest.json` - Removed localhost permissions
+3. `src/app/api/chrome-extension/save/route.ts` - API key validation
+4. `src/components/property-detail.tsx` - Currency bug fix
+5. `src/components/property-grid.tsx` - Pagination context fix
+6. `src/components/property-image-carousel.tsx` - Memory leak fix
+
+### Branch Status:
+The `scrape-facebook` branch has been thoroughly reviewed and all critical issues from both Claude and CodeRabbit have been addressed. Ready for final testing and merge.
