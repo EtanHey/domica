@@ -168,22 +168,22 @@ function createCleanDescription(text: string, extractedData: any): string {
 
   // Remove redundant room/size info if already extracted
   if (extractedData.rooms) {
-    cleanText = cleanText.replace(new RegExp(`${extractedData.rooms}\s*חדרים?`, 'g'), '');
-    cleanText = cleanText.replace(new RegExp(`${extractedData.rooms}\s*חד'?`, 'g'), '');
+    cleanText = cleanText.replace(new RegExp(`${extractedData.rooms}\\s*חדרים?`, 'g'), '');
+    cleanText = cleanText.replace(new RegExp(`${extractedData.rooms}\\s*חד'?`, 'g'), '');
   }
 
   if (extractedData.size) {
-    cleanText = cleanText.replace(new RegExp(`${extractedData.size}\s*מ[״"'ר]`, 'g'), '');
-    cleanText = cleanText.replace(new RegExp(`${extractedData.size}\s*מטר`, 'g'), '');
+    cleanText = cleanText.replace(new RegExp(`${extractedData.size}\\s*מ[״"'ר]`, 'g'), '');
+    cleanText = cleanText.replace(new RegExp(`${extractedData.size}\\s*מטר`, 'g'), '');
   }
 
   if (extractedData.floor) {
-    cleanText = cleanText.replace(new RegExp(`קומה\s*${extractedData.floor}`, 'g'), '');
+    cleanText = cleanText.replace(new RegExp(`קומה\\s*${extractedData.floor}`, 'g'), '');
   }
 
   // Remove address if it's already extracted
   if (extractedData.street) {
-    cleanText = cleanText.replace(new RegExp(extractedData.street + '\s*\d*', 'g'), '');
+    cleanText = cleanText.replace(new RegExp(extractedData.street + '\\s*\\d*', 'g'), '');
   }
 
   // Remove promotional phrases
@@ -296,8 +296,8 @@ export async function POST(request: NextRequest) {
     console.log(`⏱️ Started processing at ${new Date().toLocaleTimeString()}`);
 
     // Process posts in batches to respect Claude API rate limits (5 requests per minute)
-    const BATCH_SIZE = 3; // Process 3 at a time to stay well under rate limit
-    const BATCH_DELAY = 15000; // 15 seconds between batches to ensure we stay under 5 req/min
+    const BATCH_SIZE = 1; // Process 1 at a time to stay well under rate limit
+    const BATCH_DELAY = 13000; // 13 seconds between requests (~4.6 req/min with headroom)
 
     const processBatch = async (batch: any[], startIndex: number) => {
       return Promise.all(
@@ -727,14 +727,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// CORS headers for extension
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
-}
+// OPTIONS handled centrally in middleware.ts
