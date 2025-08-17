@@ -53,7 +53,8 @@
       "mcp__domica-notion__API-patch-block-children",
       "mcp__domica-notion__API-delete-a-block",
       "WebFetch(domain:github.com)",
-      "Bash(gh pr view:*)"
+      "Bash(gh pr view:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": []
   },

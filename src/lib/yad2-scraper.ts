@@ -243,14 +243,8 @@ export class Yad2Scraper {
       // Check for duplicates
       const duplicateResult = await duplicateDetector.checkForDuplicate(propertyInput);
 
-      if (duplicateResult.isDuplicate && duplicateResult.action === 'merge') {
-        console.log(`Duplicate found for "${listing.title}", merging with existing listing...`);
-        await duplicateDetector.mergeProperties(duplicateResult.matchedProperty!.id, propertyInput);
-        return 'duplicate';
-      }
-
-      if (duplicateResult.action === 'update') {
-        console.log(`Exact match found for "${listing.title}", updating...`);
+      if (duplicateResult.isDuplicate && duplicateResult.matchedProperty) {
+        console.log(`Duplicate found for "${listing.title}", updating existing property...`);
         // Update existing listing with same source - use properties table
         const { error: updateError } = await supabase
           .from('properties')
@@ -274,14 +268,8 @@ export class Yad2Scraper {
         return 'updated';
       }
 
-      if (duplicateResult.action === 'review') {
-        console.log(
-          `Potential duplicate for "${listing.title}" queued for review (score: ${duplicateResult.score})`
-        );
-      }
-
       // Only create new listing if not a duplicate
-      if (duplicateResult.action === 'create' || duplicateResult.action === 'review') {
+      if (!duplicateResult.isDuplicate) {
         // Insert new listing
         const { data: property, error: insertError } = await supabase
           .from('properties')
@@ -296,7 +284,7 @@ export class Yad2Scraper {
             property_type: listing.property_type,
             is_active: true,
             listing_type: listing.listing_type,
-            duplicate_status: duplicateResult.action === 'review' ? 'review' : 'unique',
+            duplicate_status: 'unique',
             source_platform: 'yad2',
             // Only store source_url if it's an actual listing URL, not a search URL
             source_url: listing.listing_url.includes('/item/')
