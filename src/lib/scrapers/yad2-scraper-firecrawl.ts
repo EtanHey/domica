@@ -19,7 +19,7 @@ export class Yad2ScraperFirecrawl {
    */
   async extractListingUrls(searchUrl: string, limit = 10): Promise<string[]> {
     console.log(`🔍 Step 1: Extracting listing URLs from search page (limit: ${limit})`);
-    
+
     try {
       const listingUrls = await this.findListingUrls(searchUrl, limit);
       console.log(`✅ Found ${listingUrls.length} listing URLs`);
@@ -35,7 +35,7 @@ export class Yad2ScraperFirecrawl {
    */
   async scrapeListings(listingUrls: string[]): Promise<ScrapedListing[]> {
     console.log(`🏠 Step 2: Scraping ${listingUrls.length} individual listings in parallel`);
-    
+
     if (listingUrls.length === 0) {
       return [];
     }
@@ -43,20 +43,22 @@ export class Yad2ScraperFirecrawl {
     // Use Promise.all for parallel scraping with concurrency control
     const concurrency = 3; // Limit concurrent requests to avoid overwhelming Firecrawl
     const listings: ScrapedListing[] = [];
-    
+
     for (let i = 0; i < listingUrls.length; i += concurrency) {
       const batch = listingUrls.slice(i, i + concurrency);
-      console.log(`Processing batch ${Math.floor(i/concurrency) + 1}/${Math.ceil(listingUrls.length/concurrency)} (${batch.length} listings)`);
-      
+      console.log(
+        `Processing batch ${Math.floor(i / concurrency) + 1}/${Math.ceil(listingUrls.length / concurrency)} (${batch.length} listings)`
+      );
+
       const batchPromises = batch.map(async (url, index) => {
         try {
           console.log(`  Scraping ${i + index + 1}/${listingUrls.length}: ${url}`);
-          
+
           // Add small delay to be respectful to the server
           if (index > 0) {
-            await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+            await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 500));
           }
-          
+
           const listing = await this.scrapeSingleListing(url);
           if (listing) {
             console.log(`  ✅ Success: ${listing.title.substring(0, 50)}...`);
@@ -65,7 +67,11 @@ export class Yad2ScraperFirecrawl {
         } catch (error) {
           // Better error categorization
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('unreachable')) {
+          if (
+            errorMsg.includes('timeout') ||
+            errorMsg.includes('network') ||
+            errorMsg.includes('unreachable')
+          ) {
             console.warn(`  ⏱️ Network timeout for ${url}`);
           } else if (errorMsg.includes('captcha') || errorMsg.includes('blocked')) {
             console.warn(`  🤖 Blocked/Captcha detected for ${url}`);
@@ -75,14 +81,16 @@ export class Yad2ScraperFirecrawl {
           return null;
         }
       });
-      
+
       const batchResults = await Promise.all(batchPromises);
-      const validListings = batchResults.filter((listing): listing is ScrapedListing => listing !== null);
+      const validListings = batchResults.filter(
+        (listing): listing is ScrapedListing => listing !== null
+      );
       listings.push(...validListings);
-      
+
       // Small delay between batches to be respectful
       if (i + concurrency < listingUrls.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -99,7 +107,7 @@ export class Yad2ScraperFirecrawl {
     try {
       // Step 1: Get listing URLs
       const listingUrls = await this.extractListingUrls(url, limit);
-      
+
       if (listingUrls.length === 0) {
         console.log('No listing URLs found on search page');
         return [];
@@ -107,7 +115,7 @@ export class Yad2ScraperFirecrawl {
 
       // Step 2: Scrape all listings in parallel
       const listings = await this.scrapeListings(listingUrls);
-      
+
       console.log(`🎉 Two-step process complete: ${listings.length} listings extracted`);
       return listings;
     } catch (error) {
@@ -134,14 +142,16 @@ export class Yad2ScraperFirecrawl {
         const listingUrls = mapResult.links
           .filter((url: string) => {
             // Only include actual listing URLs, not search pages or captcha
-            return url.includes('/realestate/item/') && 
-                   !url.includes('/realestate/rent') && 
-                   !url.includes('/realestate/forsale') &&
-                   !url.includes('hcaptcha') &&
-                   !url.includes('captcha');
+            return (
+              url.includes('/realestate/item/') &&
+              !url.includes('/realestate/rent') &&
+              !url.includes('/realestate/forsale') &&
+              !url.includes('hcaptcha') &&
+              !url.includes('captcha')
+            );
           })
           .slice(0, limit);
-        
+
         if (listingUrls.length > 0) {
           console.log(`Map API found ${listingUrls.length} listing URLs`);
           return listingUrls;
@@ -150,7 +160,6 @@ export class Yad2ScraperFirecrawl {
 
       console.log('Map API returned no results, trying fallback extraction...');
       return await this.fallbackLinkExtraction(searchUrl, limit);
-
     } catch (error) {
       console.error('Map API error:', error);
       console.log('Falling back to direct HTML extraction...');
@@ -163,12 +172,12 @@ export class Yad2ScraperFirecrawl {
    */
   private async fallbackLinkExtraction(searchUrl: string, limit: number): Promise<string[]> {
     console.log('Using optimized fallback link extraction...');
-    
+
     try {
       const searchResult = await this.firecrawl.scrapeUrl(searchUrl, {
         formats: ['markdown', 'html', 'links'],
         onlyMainContent: false,
-        proxy: 'stealth' // CRITICAL: Use stealth proxy for search pages too
+        proxy: 'stealth', // CRITICAL: Use stealth proxy for search pages too
       });
 
       if (!searchResult || ('success' in searchResult && !searchResult.success)) {
@@ -184,10 +193,12 @@ export class Yad2ScraperFirecrawl {
 
         for (const link of searchResult.links) {
           // Direct listing URLs (filter out captcha)
-          if (link.includes('/realestate/item/') && 
-              !link.includes('hcaptcha') && 
-              !link.includes('captcha') && 
-              !listingUrls.includes(link)) {
+          if (
+            link.includes('/realestate/item/') &&
+            !link.includes('hcaptcha') &&
+            !link.includes('captcha') &&
+            !listingUrls.includes(link)
+          ) {
             listingUrls.push(link);
             console.log('Found direct listing URL:', link);
           }
@@ -215,14 +226,13 @@ export class Yad2ScraperFirecrawl {
               console.log('Found listing URL from HTML pattern:', fullUrl);
             }
           }
-          
+
           if (listingUrls.length >= limit) break;
         }
       }
 
       console.log(`Fallback extraction found ${listingUrls.length} listing URLs`);
       return listingUrls.slice(0, limit);
-      
     } catch (error) {
       console.error('Error in fallback extraction:', error);
       return [];
@@ -369,70 +379,103 @@ export class Yad2ScraperFirecrawl {
           schema: {
             type: 'object',
             properties: {
-              title: { type: 'string', description: 'MAIN property title/headline in Hebrew for the PRIMARY listing being viewed. Do NOT extract titles from similar properties or recommendations on the page.' },
+              title: {
+                type: 'string',
+                description:
+                  'MAIN property title/headline in Hebrew for the PRIMARY listing being viewed. Do NOT extract titles from similar properties or recommendations on the page.',
+              },
               price: {
                 type: 'number',
-                description: 'Price in Israeli Shekels (NIS) for the MAIN property being viewed. For rental listings this is monthly rent, for sale listings this is the total sale price. Extract only the numeric value from the PRIMARY listing, ignore prices from similar properties or recommendations.'
+                description:
+                  'Price in Israeli Shekels (NIS) for the MAIN property being viewed. For rental listings this is monthly rent, for sale listings this is the total sale price. Extract only the numeric value from the PRIMARY listing, ignore prices from similar properties or recommendations.',
               },
-              rooms: { type: 'number', description: 'Number of rooms. Look for \"חדרים\" or room count' },
+              rooms: {
+                type: 'number',
+                description: 'Number of rooms. Look for \"חדרים\" or room count',
+              },
               size_sqm: {
                 type: 'number',
-                description: 'Apartment size in square meters. Look for patterns like \"X מ״ר\", \"X מטר רבוע\", or size numbers followed by size indicators'
+                description:
+                  'Apartment size in square meters. Look for patterns like \"X מ״ר\", \"X מטר רבוע\", or size numbers followed by size indicators',
               },
               floor: {
                 type: 'number',
-                description: 'Building floor number. Look for \"קומה X\", \"קומת X\", or floor indicators'
+                description:
+                  'Building floor number. Look for \"קומה X\", \"קומת X\", or floor indicators',
               },
               total_floors: {
                 type: 'number',
-                description: 'Total floors in building. Look for \"מתוך X קומות\" or similar patterns'
+                description:
+                  'Total floors in building. Look for \"מתוך X קומות\" or similar patterns',
               },
-              raw_location: { type: 'string', description: 'Full location text as it appears on the page' },
+              raw_location: {
+                type: 'string',
+                description: 'Full location text as it appears on the page',
+              },
               city: {
                 type: 'string',
-                description: 'ACTUAL city name where THIS MAIN PROPERTY BEING VIEWED is located. Extract the real city from the PRIMARY listing content only, NOT from similar properties, recommendations, or other listings on the page. Remove \"ב\" prefix if present (e.g., \"בחריש\" → \"חריש\", \"בתל אביב\" → \"תל אביב\"). Must match ONLY the main property being viewed, ignore all other properties shown on the page.'
+                description:
+                  'ACTUAL city name where THIS MAIN PROPERTY BEING VIEWED is located. Extract the real city from the PRIMARY listing content only, NOT from similar properties, recommendations, or other listings on the page. Remove \"ב\" prefix if present (e.g., \"בחריש\" → \"חריש\", \"בתל אביב\" → \"תל אביב\"). Must match ONLY the main property being viewed, ignore all other properties shown on the page.',
               },
               neighborhood: {
                 type: 'string',
-                description: 'Neighborhood or area within the city. This is usually more specific than the city'
+                description:
+                  'Neighborhood or area within the city. This is usually more specific than the city',
               },
               address: { type: 'string', description: 'Street address if available' },
               description: { type: 'string', description: 'Property description text' },
-              property_type: { type: 'string', description: 'Type of property in Hebrew (דירה, בית, פנטהאוז, etc.)' },
-              condition: { type: 'string', description: 'Property condition (משופץ, חדש, ישן, etc.)' },
+              property_type: {
+                type: 'string',
+                description: 'Type of property in Hebrew (דירה, בית, פנטהאוז, etc.)',
+              },
+              condition: {
+                type: 'string',
+                description: 'Property condition (משופץ, חדש, ישן, etc.)',
+              },
               amenities: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'List of amenities in Hebrew (חניה, מעלית, מרפסת, מיזוג, etc.)'
+                description: 'List of amenities in Hebrew (חניה, מעלית, מרפסת, מיזוג, etc.)',
               },
-              parking: { type: 'boolean', description: 'Whether parking is available. Look for \"חניה\"' },
-              elevator: { type: 'boolean', description: 'Whether elevator is available. Look for \"מעלית\"' },
-              balcony: { type: 'boolean', description: 'Whether balcony is available. Look for \"מרפסת\"' },
+              parking: {
+                type: 'boolean',
+                description: 'Whether parking is available. Look for \"חניה\"',
+              },
+              elevator: {
+                type: 'boolean',
+                description: 'Whether elevator is available. Look for \"מעלית\"',
+              },
+              balcony: {
+                type: 'boolean',
+                description: 'Whether balcony is available. Look for \"מרפסת\"',
+              },
               air_conditioning: {
                 type: 'boolean',
-                description: 'Whether air conditioning is available. Look for \"מיזוג\" or \"מזגן\"'
+                description:
+                  'Whether air conditioning is available. Look for \"מיזוג\" or \"מזגן\"',
               },
               contact_name: { type: 'string', description: 'Contact person name' },
               phone_number: { type: 'string', description: 'Contact phone number' },
               listing_type: {
                 type: 'string',
                 enum: ['rent', 'sale'],
-                description: 'Whether this is for rent (השכרה) or sale (מכירה)'
+                description: 'Whether this is for rent (השכרה) or sale (מכירה)',
               },
               immediate_entry: {
                 type: 'boolean',
-                description: 'Whether immediate entry is available. Look for \"כניסה מיידית\"'
+                description: 'Whether immediate entry is available. Look for \"כניסה מיידית\"',
               },
               entry_date: { type: 'string', description: 'Entry date if specified' },
               images: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'Array of REAL image URLs from THIS SPECIFIC LISTING ONLY. Must be actual Yad2 image URLs (img.yad2.co.il, etc.) starting with http:// or https://. DO NOT include placeholder URLs like \"example.com\", \"image1.jpg\", or template images. Return empty array if no real images found.'
-              }
+                description:
+                  'Array of REAL image URLs from THIS SPECIFIC LISTING ONLY. Must be actual Yad2 image URLs (img.yad2.co.il, etc.) starting with http:// or https://. DO NOT include placeholder URLs like \"example.com\", \"image1.jpg\", or template images. Return empty array if no real images found.',
+              },
             },
-            required: ['title', 'price', 'rooms', 'city', 'description']
-          }
-        }
+            required: ['title', 'price', 'rooms', 'city', 'description'],
+          },
+        },
       };
 
       const result = await this.firecrawl.scrapeUrl(url, scrapeParams);
@@ -445,7 +488,7 @@ export class Yad2ScraperFirecrawl {
 
       // Firecrawl returns data directly on the response object
       const { markdown = '', html = '', metadata = {}, screenshot, extract } = result;
-      
+
       // Check if this is a captcha page
       if (
         markdown.includes('Are you for real') ||
@@ -559,7 +602,7 @@ export class Yad2ScraperFirecrawl {
 
       // Create description if missing
       if (!description) {
-        const descLines = markdown.split('\n').filter(line => line.trim().length > 20);
+        const descLines = markdown.split('\n').filter((line) => line.trim().length > 20);
         if (descLines.length > 0) {
           description = descLines.slice(0, 3).join(' ').substring(0, 500);
         }
@@ -581,7 +624,7 @@ export class Yad2ScraperFirecrawl {
           )
           .slice(0, 10);
       }
-      
+
       // Add screenshot if available and no other images
       if (screenshot && images.length === 0) {
         images.push(screenshot);
@@ -643,7 +686,7 @@ export class Yad2ScraperFirecrawl {
         phone_number,
         listing_url: url,
         listing_type: listing_type as 'rent' | 'sale',
-        source_platform: 'yad2'
+        source_platform: 'yad2',
       };
     } catch (error) {
       console.error('Error scraping single listing:', error);

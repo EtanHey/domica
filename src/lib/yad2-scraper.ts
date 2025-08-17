@@ -153,7 +153,7 @@ export class Yad2Scraper {
 
       const scrapedListings = await this.scraper.scrapeListings(urls);
       const yad2Listings = scrapedListings
-        .map(listing => this.convertToYad2Listing(listing))
+        .map((listing) => this.convertToYad2Listing(listing))
         .filter((listing): listing is Yad2Listing => listing !== null);
 
       return yad2Listings;
@@ -178,13 +178,13 @@ export class Yad2Scraper {
         console.log('Using enhanced two-step scraping...');
         const scrapedListings = await this.scraper.scrapeSearchResultsWithTwoStep(url, maxListings);
         console.log(`Found ${scrapedListings.length} listings via two-step approach`);
-        return scrapedListings.map(listing => this.convertToYad2Listing(listing));
+        return scrapedListings.map((listing) => this.convertToYad2Listing(listing));
       } else {
         // Fallback to original method
         console.log('Using legacy scraping method...');
         const scrapedListings = await this.scraper.scrapeSearchResults(url, maxListings);
         console.log(`Found ${scrapedListings.length} listings`);
-        return scrapedListings.map(listing => this.convertToYad2Listing(listing));
+        return scrapedListings.map((listing) => this.convertToYad2Listing(listing));
       }
     } catch (error) {
       console.error('Error scraping Yad2:', error);
@@ -243,14 +243,8 @@ export class Yad2Scraper {
       // Check for duplicates
       const duplicateResult = await duplicateDetector.checkForDuplicate(propertyInput);
 
-      if (duplicateResult.isDuplicate && duplicateResult.action === 'merge') {
-        console.log(`Duplicate found for "${listing.title}", merging with existing listing...`);
-        await duplicateDetector.mergeProperties(duplicateResult.matchedProperty!.id, propertyInput);
-        return 'duplicate';
-      }
-
-      if (duplicateResult.action === 'update') {
-        console.log(`Exact match found for "${listing.title}", updating...`);
+      if (duplicateResult.isDuplicate && duplicateResult.matchedProperty) {
+        console.log(`Duplicate found for "${listing.title}", updating existing property...`);
         // Update existing listing with same source - use properties table
         const { error: updateError } = await supabase
           .from('properties')
@@ -274,14 +268,8 @@ export class Yad2Scraper {
         return 'updated';
       }
 
-      if (duplicateResult.action === 'review') {
-        console.log(
-          `Potential duplicate for "${listing.title}" queued for review (score: ${duplicateResult.score})`
-        );
-      }
-
       // Only create new listing if not a duplicate
-      if (duplicateResult.action === 'create' || duplicateResult.action === 'review') {
+      if (!duplicateResult.isDuplicate) {
         // Insert new listing
         const { data: property, error: insertError } = await supabase
           .from('properties')
@@ -296,7 +284,7 @@ export class Yad2Scraper {
             property_type: listing.property_type,
             is_active: true,
             listing_type: listing.listing_type,
-            duplicate_status: duplicateResult.action === 'review' ? 'review' : 'unique',
+            duplicate_status: 'unique',
             source_platform: 'yad2',
             // Only store source_url if it's an actual listing URL, not a search URL
             source_url: listing.listing_url.includes('/item/')
@@ -311,7 +299,7 @@ export class Yad2Scraper {
         // Insert property location data
         if (property) {
           // Parse location string to extract components
-          const locationParts = listing.location.split(',').map(s => s.trim());
+          const locationParts = listing.location.split(',').map((s) => s.trim());
           let city = locationParts[locationParts.length - 1];
           let neighborhood = '';
           let address = '';
@@ -424,26 +412,26 @@ export class Yad2Scraper {
         if (property && listing.amenities.length > 0) {
           // Map Hebrew amenity names to boolean fields
           const amenityMapping = {
-            'חניה': 'parking',
-            'מעלית': 'elevator', 
-            'מרפסת': 'balcony',
+            חניה: 'parking',
+            מעלית: 'elevator',
+            מרפסת: 'balcony',
             'מיזוג אוויר': 'air_conditioning',
-            'מזגן': 'ac_unit',
-            'חימום': 'heating',
-            'אינטרנט': 'internet',
-            'כביסה': 'laundry',
+            מזגן: 'ac_unit',
+            חימום: 'heating',
+            אינטרנט: 'internet',
+            כביסה: 'laundry',
             'מטבח מצויד': 'equipped_kitchen',
-            'מקלחת': 'shower',
-            'אמבטיה': 'bathtub',
-            'מחסן': 'storage',
-            'גינה': 'garden',
-            'מאובטח': 'secured',
+            מקלחת: 'shower',
+            אמבטיה: 'bathtub',
+            מחסן: 'storage',
+            גינה: 'garden',
+            מאובטח: 'secured',
             'נגיש לנכים': 'accessible',
-            'סורגים': 'bars',
+            סורגים: 'bars',
             'דלת פלדה': 'steel_door',
-            'חצר': 'yard',
-            'גג': 'roof',
-            'ממ"ד': 'safe_room'
+            חצר: 'yard',
+            גג: 'roof',
+            'ממ"ד': 'safe_room',
           };
 
           // Create amenities object with boolean values
@@ -468,11 +456,11 @@ export class Yad2Scraper {
             accessible: false,
             bars: false,
             steel_door: false,
-            safe_room: false
+            safe_room: false,
           };
 
           // Set amenities to true based on listing
-          listing.amenities.forEach(amenity => {
+          listing.amenities.forEach((amenity) => {
             const field = amenityMapping[amenity as keyof typeof amenityMapping];
             if (field) {
               if (field === 'parking' || field === 'balcony' || field === 'garden') {

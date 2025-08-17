@@ -23,9 +23,14 @@ import { ListingType, ListingTypeValue } from '@/types/listing';
 interface PropertyGridProps {
   listingType?: ListingTypeValue;
   initialPage?: number;
+  sourcePlatform?: 'yad2' | 'facebook';
 }
 
-export function PropertyGrid({ listingType = ListingType.All, initialPage = 1 }: PropertyGridProps) {
+export function PropertyGrid({
+  listingType = ListingType.All,
+  initialPage = 1,
+  sourcePlatform,
+}: PropertyGridProps) {
   const [page, setPage] = useState(initialPage);
   const router = useRouter();
   const pathname = usePathname();
@@ -39,22 +44,18 @@ export function PropertyGrid({ listingType = ListingType.All, initialPage = 1 }:
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
 
-    // Build the new URL based on listing type and current path
+    // Build the new URL based on current section, listing type, and source platform
     let newPath = '';
     if (pathname.includes('/scraping-poc')) {
-      // We're in the scraping-poc section
-      if (listingType === ListingType.All) {
-        newPath = `/scraping-poc/${newPage}`;
-      } else {
-        newPath = `/scraping-poc/${listingType}/${newPage}`;
-      }
+      const base = `/scraping-poc${sourcePlatform ? `/${sourcePlatform}` : ''}`;
+      newPath =
+        listingType === ListingType.All
+          ? `${base}/${newPage}`
+          : `${base}/${listingType}/${newPage}`;
     } else {
       // Original routing for other sections
-      if (listingType === ListingType.All) {
-        newPath = `/${newPage}`;
-      } else {
-        newPath = `/${listingType}/${newPage}`;
-      }
+      newPath =
+        listingType === ListingType.All ? `/${newPage}` : `/${listingType}/${newPage}`;
     }
 
     // Navigate without auto-scroll, then smooth scroll manually
@@ -66,13 +67,14 @@ export function PropertyGrid({ listingType = ListingType.All, initialPage = 1 }:
     }, 50);
   };
 
-  // Build filters based on listing type
+  // Build filters based on listing type and source platform
   const filters = {
     page,
     limit: 20,
     ...(listingType === ListingType.Rent && { listingType: 'rent' as const }),
     ...(listingType === ListingType.Sale && { listingType: 'sale' as const }),
     ...(listingType === ListingType.Review && { duplicateStatus: 'review' as const }),
+    ...(sourcePlatform && { sourcePlatform }),
   };
 
   const { data, isLoading, error } = useProperties(filters);

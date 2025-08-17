@@ -42,3 +42,8 @@ next-env.d.ts
 
 # Claude AI files
 CLAUDE.local.md
+
+# Google Cloud credentials
+google-credentials.json
+*-credentials.json
+service-account-*.json

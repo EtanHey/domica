@@ -13,6 +13,7 @@ interface PropertyFilters {
   limit?: number;
   listingType?: 'rent' | 'sale';
   duplicateStatus?: 'review' | 'unique' | 'duplicate';
+  sourcePlatform?: 'yad2' | 'facebook';
 }
 
 // Fetch all properties with optional filters and pagination
@@ -69,6 +70,9 @@ export function useProperties(filters?: PropertyFilters) {
       }
       if (filters?.duplicateStatus) {
         query = query.eq('duplicate_status', filters.duplicateStatus);
+      }
+      if (filters?.sourcePlatform) {
+        query = query.eq('source_platform', filters.sourcePlatform);
       }
 
       // Exclude confirmed duplicates unless specifically requested
