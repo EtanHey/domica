@@ -58,5 +58,5 @@
     "deny": []
   },
   "enableAllProjectMcpServers": false,
-  "outputStyle": "Learning"
+  "outputStyle": "default"
 }

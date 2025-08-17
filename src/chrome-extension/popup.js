@@ -199,9 +199,23 @@ async function saveToDomica() {
     // Get Domica URL from settings or use default
     const domicaUrl = 'http://localhost:3001';
     
-    // Create abort controller with 90 second timeout (for Claude API processing)
+    // Dynamic timeout based on number of posts
+    // Each batch of 3 posts takes ~25-30 seconds (15s delay + processing)
+    // Add 90 seconds buffer for network and initial processing
+    const batchCount = Math.ceil(extractedPosts.length / 3);
+    const estimatedSeconds = (batchCount * 30) + 90;
+    const timeoutMs = Math.max(estimatedSeconds * 1000, 120000); // Minimum 2 minutes
+    
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000);
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      setStatus('error', 'הבקשה לקחה יותר מדי זמן - נסה עם פחות פוסטים');
+    }, timeoutMs);
+    
+    // Show processing status with estimated time
+    const actualEstimatedSeconds = (batchCount * 20) + 60; // More realistic estimate for display
+    const estimatedMinutes = Math.ceil(actualEstimatedSeconds / 60);
+    setStatus('info', `מעבד ${extractedPosts.length} דירות... זה יכול לקחת עד ${estimatedMinutes} דקות`);
     
     const response = await fetch(`${domicaUrl}/api/chrome-extension/save`, {
       method: 'POST',
@@ -219,7 +233,21 @@ async function saveToDomica() {
     });
     
     if (response.ok) {
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse response JSON:', jsonError);
+        // If we can't parse the response but it was OK, assume success
+        setStatus('success', 'הדירות נשמרו בהצלחה');
+        setTimeout(() => {
+          extractedPosts = [];
+          resultsSection.classList.add('hidden');
+          setStatus('', 'מוכן לסריקה');
+        }, 3000);
+        return;
+      }
+      
       console.log('Save response:', data);
       
       // Handle different response scenarios
@@ -275,7 +303,10 @@ async function saveToDomica() {
     
     // Try to determine the specific error
     let errorMessage = 'שגיאה בשמירה';
-    if (error.message.includes('Failed to fetch')) {
+    if (error.name === 'AbortError') {
+      // Already set error message in timeout
+      return;
+    } else if (error.message.includes('Failed to fetch')) {
       errorMessage = 'לא ניתן להתחבר לשרת - ודא ש-npm run dev פועל';
     } else if (error.message.includes('CORS')) {
       errorMessage = 'שגיאת CORS - בדוק הרשאות';

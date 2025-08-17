@@ -11,6 +11,14 @@ const getAllowedOrigins = () => {
     'https://domica-git-scrape-facebook-etanheys-projects.vercel.app'
   );
   
+  // Allow Facebook domains for Chrome extension
+  allowedOrigins.push(
+    'https://www.facebook.com',
+    'https://facebook.com',
+    'http://www.facebook.com',
+    'http://facebook.com'
+  );
+  
   // In development, also allow localhost
   if (process.env.NODE_ENV === 'development') {
     allowedOrigins.push(

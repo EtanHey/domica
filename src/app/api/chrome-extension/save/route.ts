@@ -279,6 +279,8 @@ function extractAmenitiesFromText(text: string): string[] {
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     console.log('Chrome extension save API called');
     const body = await request.json();
@@ -291,6 +293,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`Processing ${posts.length} posts`);
+    console.log(`⏱️ Started processing at ${new Date().toLocaleTimeString()}`);
 
     // Process posts in batches to respect Claude API rate limits (5 requests per minute)
     const BATCH_SIZE = 3; // Process 3 at a time to stay well under rate limit
@@ -405,9 +408,22 @@ export async function POST(request: NextRequest) {
             // Always use extracted phone from scraper
             extractedData.contactPhone = post.phones?.[0] || extractPhoneFromText(post.text);
 
+            // Generate unique ID based on post content for duplicate detection
+            // Use combination of author, price, rooms, and location for consistency
+            // If price is missing, use a combination of other extracted fields
+            let uniqueId: string;
+            if (extractedData.price) {
+              // If we have price, use it with rooms for consistency
+              uniqueId = `fb-${post.author?.replace(/\s+/g, '-')}-${extractedData.price}-${extractedData.rooms || 0}`.toLowerCase();
+            } else {
+              // If no price, use combination of author, rooms, city, and street/neighborhood
+              const location = extractedData.street || extractedData.neighborhood || extractedData.city || 'unknown';
+              uniqueId = `fb-${post.author?.replace(/\s+/g, '-')}-${extractedData.rooms || 0}-${location.replace(/\s+/g, '-')}`.toLowerCase();
+            }
+
             // Create property object
             const property: any = {
-              id: `ext-${Date.now()}-${actualIndex}`,
+              id: uniqueId,
               title: extractedData.rooms
                 ? `דירת ${extractedData.rooms} חדרים ב${extractedData.neighborhood || extractedData.city || 'לא צוין'}`
                 : 'דירה להשכרה',
@@ -448,8 +464,12 @@ export async function POST(request: NextRequest) {
     const allResults = [];
     for (let i = 0; i < posts.length; i += BATCH_SIZE) {
       const batch = posts.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(posts.length / BATCH_SIZE);
+      const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
+      
       console.log(
-        `Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(posts.length / BATCH_SIZE)} (posts ${i + 1}-${Math.min(i + BATCH_SIZE, posts.length)})`
+        `⏱️ [${elapsedSeconds}s] Processing batch ${batchNumber}/${totalBatches} (posts ${i + 1}-${Math.min(i + BATCH_SIZE, posts.length)})`
       );
 
       const batchResults = await processBatch(batch, i);
@@ -457,8 +477,10 @@ export async function POST(request: NextRequest) {
 
       // Wait between batches to avoid rate limiting (except for last batch)
       if (i + BATCH_SIZE < posts.length) {
+        const remainingBatches = totalBatches - batchNumber;
+        const estimatedRemainingSeconds = remainingBatches * (BATCH_DELAY / 1000 + 5); // +5 for processing time
         console.log(
-          `Waiting ${BATCH_DELAY / 1000} seconds before next batch to avoid rate limiting...`
+          `⏱️ [${elapsedSeconds}s] Waiting ${BATCH_DELAY / 1000} seconds before next batch... (~${estimatedRemainingSeconds}s remaining)`
         );
         await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY));
       }
@@ -537,6 +559,7 @@ export async function POST(request: NextRequest) {
           is_active: true,
           listing_type: 'rent',
           source_platform: 'facebook',
+          source_id: property.id, // Add source_id for duplicate detection
           source_url: property.sourceUrl,
           description: property.description || '',
           phone_normalized: property.contactPhone?.replace(/\D/g, '') || null,
@@ -674,12 +697,15 @@ export async function POST(request: NextRequest) {
             : 'לא נמצאו דירות חדשות לשמירה',
     };
 
+    const totalTime = Math.round((Date.now() - startTime) / 1000);
+    console.log(`⏱️ Total processing time: ${totalTime} seconds`);
     console.log('API Response:', {
       saved: response.saved,
       updated: response.updated,
       skipped: response.skipped,
       total: response.total,
       hasErrors: errors.length > 0,
+      processingTime: `${totalTime}s`
     });
 
     return NextResponse.json(response);
