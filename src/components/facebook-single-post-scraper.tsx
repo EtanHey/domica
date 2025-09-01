@@ -9,7 +9,6 @@ import { Loader2, Link, Check, X, Copy, ExternalLink, FileText, AlertCircle, Sav
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
 export function FacebookSinglePostScraper() {
   const [url, setUrl] = useState('');

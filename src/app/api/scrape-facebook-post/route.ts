@@ -261,6 +261,41 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { url, text } = body;
 
+    // Input validation
+    if (!url && !text) {
+      return NextResponse.json(
+        { success: false, error: 'Either URL or text is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate URL format if provided
+    if (url) {
+      try {
+        const parsedUrl = new URL(url);
+        // Only allow Facebook URLs for security
+        if (!parsedUrl.hostname.includes('facebook.com')) {
+          return NextResponse.json(
+            { success: false, error: 'Only Facebook URLs are allowed' },
+            { status: 400 }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { success: false, error: 'Invalid URL format' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate text length if provided
+    if (text && text.length > 50000) {
+      return NextResponse.json(
+        { success: false, error: 'Text content too large (max 50000 characters)' },
+        { status: 400 }
+      );
+    }
+
     // If text is provided directly, use it
     if (text && text.trim()) {
       console.log('Using provided text instead of scraping');
@@ -488,15 +523,21 @@ ${text}
     }
 
     // If Firecrawl didn't work, try Playwright
+    let browser = null;
     try {
       // Check if we have Playwright available
       const playwright = await import('playwright').catch(() => null);
 
       if (playwright) {
         console.log('Using Playwright for scraping...');
-        const browser = await playwright.chromium.launch({
+        // Only use --no-sandbox in development for better security
+        const args = process.env.NODE_ENV === 'development' 
+          ? ['--no-sandbox', '--disable-setuid-sandbox']
+          : ['--disable-dev-shm-usage']; // Safer option for production
+        
+        browser = await playwright.chromium.launch({
           headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+          args,
         });
         const context = await browser.newContext({
           userAgent:
@@ -606,6 +647,15 @@ ${text}
       }
     } catch (error) {
       console.error('Playwright error:', error);
+    } finally {
+      // Ensure browser is always closed to prevent resource leaks
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.error('Error closing browser:', closeError);
+        }
+      }
     }
 
     // Method 3: Try using a proxy service
