@@ -104,11 +104,12 @@ export class DuplicateDetectionService {
   private compareDescriptions(desc1?: string, desc2?: string): boolean {
     if (!desc1 || !desc2) return false;
 
-    // Remove whitespace and punctuation for comparison
+    // Remove punctuation and normalize whitespace for comparison
+    // Use Unicode property classes to preserve Hebrew letters
     const normalize = (text: string) =>
       text
         .toLowerCase()
-        .replace(/[^\w\s]/g, '')
+        .replace(/[^\p{L}\p{N}\s]/gu, '')
         .replace(/\s+/g, ' ')
         .trim();
 

@@ -19,18 +19,36 @@ const firecrawl = process.env.FIRECRAWL_API_KEY
 // Helper function to extract Yad2 link from text
 function extractYad2Link(text: string): string | null {
   const yad2Patterns = [
-    /https?:\/\/(?:www\.)?yad2\.co\.il\/[^\s,]+/gi,
-    /yad2\.co\.il\/[^\s,]+/gi,
+    /https?:\/\/(?:[\w-]+\.)?yad2\.co\.il(?:\/[^\s"'>),.?!\\]]*)?/gi,
+    /(?:^|\b)(?:www\.)?yad2\.co\.il(?:\/[^\s"'>),.?!\\]]*)?/gi,
   ];
   
   for (const pattern of yad2Patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      let url = match[0];
-      if (!url.startsWith('http')) {
-        url = 'https://' + url;
+    const matches = text.match(pattern);
+    if (matches) {
+      for (const match of matches) {
+        let url = match.trim();
+        // Remove trailing punctuation
+        url = url.replace(/[,.!?;)\\]]+$/, '');
+        
+        // Make sure it's not just the domain
+        if (url !== 'yad2.co.il' && url !== 'www.yad2.co.il') {
+          // Ensure it has a proper path for properties
+          try {
+            if (!url.startsWith('http')) {
+              url = 'https://' + url;
+            }
+            const urlObj = new URL(url);
+            // Require at least a meaningful path
+            if (urlObj.pathname.length > 1) {
+              return url;
+            }
+          } catch (e) {
+            // Skip invalid URLs
+            continue;
+          }
+        }
       }
-      return url;
     }
   }
   
@@ -273,8 +291,10 @@ export async function POST(request: NextRequest) {
     if (url) {
       try {
         const parsedUrl = new URL(url);
-        // Only allow Facebook URLs for security
-        if (!parsedUrl.hostname.includes('facebook.com')) {
+        // Only allow facebook.com and its subdomains
+        const host = parsedUrl.hostname.toLowerCase();
+        const isFb = host === 'facebook.com' || host.endsWith('.facebook.com');
+        if (!isFb) {
           return NextResponse.json(
             { success: false, error: 'Only Facebook URLs are allowed' },
             { status: 400 }
@@ -369,32 +389,32 @@ ${text}
           // Merge data from Facebook and Yad2 if available
           const mergedData = yad2PropertyInfo ? {
             ...extractedData,
-            price: yad2PropertyInfo.price || extractedData.price,
-            rooms: yad2PropertyInfo.rooms || extractedData.rooms,
-            size: yad2PropertyInfo.size || extractedData.size,
-            city: yad2PropertyInfo.city || extractedData.city,
-            neighborhood: yad2PropertyInfo.neighborhood || extractedData.neighborhood,
-            street: yad2PropertyInfo.street || extractedData.street,
-            floor: yad2PropertyInfo.floor || extractedData.floor,
+            price: yad2PropertyInfo.price ?? extractedData.price,
+            rooms: yad2PropertyInfo.rooms ?? extractedData.rooms,
+            size: yad2PropertyInfo.size ?? extractedData.size,
+            city: yad2PropertyInfo.city ?? extractedData.city,
+            neighborhood: yad2PropertyInfo.neighborhood ?? extractedData.neighborhood,
+            street: yad2PropertyInfo.street ?? extractedData.street,
+            floor: yad2PropertyInfo.floor ?? extractedData.floor,
             amenities: [...new Set([...(extractedData.amenities || []), ...(yad2PropertyInfo.amenities || [])])],
-            description: extractedData.description + (yad2PropertyInfo ? '\n\n[מידע נוסף מיד2]\n' + yad2PropertyInfo.description : ''),
+            description: (extractedData.description ?? '') + (yad2PropertyInfo.description ? '\n\n[מידע נוסף מיד2]\n' + yad2PropertyInfo.description : ''),
             yad2Url: yad2PropertyInfo?.yad2Url,
-            images: yad2PropertyInfo?.images || extractedData.images,
-            propertyType: yad2PropertyInfo?.propertyType || extractedData.propertyType,
-            listingType: yad2PropertyInfo?.listingType || extractedData.listingType,
-            contactPhone: yad2PropertyInfo?.contactPhone || extractedData.contactPhone,
-            contactName: yad2PropertyInfo?.contactName || extractedData.contactName,
+            images: yad2PropertyInfo?.images ?? extractedData.images,
+            propertyType: yad2PropertyInfo?.propertyType ?? extractedData.propertyType,
+            listingType: yad2PropertyInfo?.listingType ?? extractedData.listingType,
+            contactPhone: yad2PropertyInfo?.contactPhone ?? extractedData.contactPhone,
+            contactName: yad2PropertyInfo?.contactName ?? extractedData.contactName,
           } : extractedData;
           
           // Format the response
           const property = {
             title:
-              `דירת ${mergedData.rooms || ''} חדרים ${mergedData.neighborhood ? 'ב' + mergedData.neighborhood : ''} ${mergedData.city || 'פתח תקווה'}`.trim(),
+              `דירת ${mergedData.rooms || ''} חדרים ${mergedData.neighborhood ? 'ב' + mergedData.neighborhood : ''} ${mergedData.city || ''}`.trim(),
             pricePerMonth: mergedData.price?.toString() || '0',
             currency: 'ILS',
             bedrooms: mergedData.rooms ? Math.floor(mergedData.rooms) : null,
             size: mergedData.size,
-            city: mergedData.city || 'פתח תקווה',
+            city: mergedData.city,
             neighborhood: mergedData.neighborhood,
             street: mergedData.street,
             floor: mergedData.floor,
@@ -435,7 +455,7 @@ ${text}
               currency: 'ILS',
               bedrooms: basicInfo.rooms ? Math.floor(basicInfo.rooms) : null,
               size: basicInfo.size,
-              city: basicInfo.city || 'פתח תקווה',
+              city: basicInfo.city,
               neighborhood: basicInfo.neighborhood,
               street: basicInfo.street,
               floor: basicInfo.floor,
@@ -539,20 +559,22 @@ ${text}
           headless: true,
           args,
         });
-        const context = await browser.newContext({
-          userAgent:
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        });
-        const page = await context.newPage();
+        
+        try {
+          const context = await browser.newContext({
+            userAgent:
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          });
+          const page = await context.newPage();
 
-        // Navigate to the URL
-        await page.goto(url, { waitUntil: 'networkidle' });
+          // Navigate to the URL
+          await page.goto(url, { waitUntil: 'networkidle' });
 
-        // Wait for content to load
-        await page.waitForTimeout(3000);
+          // Wait for content to load
+          await page.waitForTimeout(3000);
 
-        // Try to extract the post content and Yad2 links
-        const extractionResult = await page.evaluate(() => {
+          // Try to extract the post content and Yad2 links
+          const extractionResult = await page.evaluate(() => {
           // Look for post content in various selectors
           const selectors = [
             '[data-ad-preview="message"]',
@@ -604,11 +626,9 @@ ${text}
           };
         });
 
-        postContent = extractionResult.content;
-
-        await browser.close();
-        console.log('Playwright scraping successful, content length:', postContent.length);
-        console.log('Scraped content preview:', postContent.substring(0, 200));
+          postContent = extractionResult.content;
+          console.log('Playwright scraping successful, content length:', postContent.length);
+          console.log('Scraped content preview:', postContent.substring(0, 200));
         
         // Check for Yad2 links from Playwright extraction
         if (!yad2PropertyInfo && extractionResult.yad2Links && extractionResult.yad2Links.length > 0) {
@@ -643,6 +663,9 @@ ${text}
             console.log('Found Yad2 link via text extraction:', yad2Link);
             yad2PropertyInfo = await scrapeYad2Property(yad2Link);
           }
+        }
+        } catch (innerError) {
+          console.error('Playwright extraction error:', innerError);
         }
       }
     } catch (error) {
@@ -786,27 +809,27 @@ ${postContent}
         // Merge data from Facebook and Yad2 if available
         const mergedData = yad2PropertyInfo ? {
           ...extractedData,
-          price: yad2PropertyInfo.price || extractedData.price,
-          rooms: yad2PropertyInfo.rooms || extractedData.rooms,
-          size: yad2PropertyInfo.size || extractedData.size,
-          city: yad2PropertyInfo.city || extractedData.city,
-          neighborhood: yad2PropertyInfo.neighborhood || extractedData.neighborhood,
-          street: yad2PropertyInfo.street || extractedData.street,
-          floor: yad2PropertyInfo.floor || extractedData.floor,
+          price: yad2PropertyInfo.price ?? extractedData.price,
+          rooms: yad2PropertyInfo.rooms ?? extractedData.rooms,
+          size: yad2PropertyInfo.size ?? extractedData.size,
+          city: yad2PropertyInfo.city ?? extractedData.city,
+          neighborhood: yad2PropertyInfo.neighborhood ?? extractedData.neighborhood,
+          street: yad2PropertyInfo.street ?? extractedData.street,
+          floor: yad2PropertyInfo.floor ?? extractedData.floor,
           amenities: [...new Set([...(extractedData.amenities || []), ...(yad2PropertyInfo.amenities || [])])],
-          description: extractedData.description + (yad2PropertyInfo ? '\n\n[מידע נוסף מיד2]\n' + yad2PropertyInfo.description : ''),
+          description: (extractedData.description ?? '') + (yad2PropertyInfo.description ? '\n\n[מידע נוסף מיד2]\n' + yad2PropertyInfo.description : ''),
           yad2Url: yad2PropertyInfo?.yad2Url,
         } : extractedData;
         
         // Format the response
         const property = {
           title:
-            `דירת ${mergedData.rooms || ''} חדרים ${mergedData.neighborhood ? 'ב' + mergedData.neighborhood : ''} ${mergedData.city || 'פתח תקווה'}`.trim(),
+            `דירת ${mergedData.rooms || ''} חדרים ${mergedData.neighborhood ? 'ב' + mergedData.neighborhood : ''} ${mergedData.city || ''}`.trim(),
           pricePerMonth: mergedData.price?.toString() || '0',
           currency: 'ILS',
           bedrooms: mergedData.rooms ? Math.floor(mergedData.rooms) : null,
           size: mergedData.size,
-          city: mergedData.city || 'פתח תקווה',
+          city: mergedData.city,
           neighborhood: mergedData.neighborhood,
           street: mergedData.street,
           floor: mergedData.floor,
@@ -818,6 +841,7 @@ ${postContent}
           sourceUrl: url,
           sourcePlatform: 'facebook',
           yad2Url: mergedData.yad2Url,
+          images: (yad2PropertyInfo?.images || extractedData.images) ?? [],
         };
 
         return NextResponse.json({
@@ -861,7 +885,7 @@ ${postContent}
             currency: 'ILS',
             bedrooms: basicInfo.rooms ? Math.floor(basicInfo.rooms) : null,
             size: basicInfo.size,
-            city: basicInfo.city || 'פתח תקווה',
+            city: basicInfo.city,
             neighborhood: basicInfo.neighborhood,
             street: basicInfo.street,
             floor: basicInfo.floor,

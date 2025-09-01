@@ -31,27 +31,27 @@ export function FacebookSmartPaste() {
     const potentialPosts = text.split(/\n{3,}|_{10,}|-{10,}|={10,}/);
 
     potentialPosts.forEach((chunk) => {
-      // Skip very short chunks
-      if (chunk.trim().length < 50) return;
+      const trimmed = chunk.trim();
+      if (trimmed.length < 50) return;
 
       // Look for author pattern (name followed by time indicator)
-      const authorMatch = chunk.match(
+      const authorMatch = trimmed.match(
         /^([^\n]+?)(?:\s+·\s+|\s+•\s+|\n)(?:\d+[hdwm]|\d+\s*(?:hours?|days?|weeks?))/
       );
       const author = authorMatch ? authorMatch[1].trim() : undefined;
 
       // Extract price
-      const priceMatch = chunk.match(
+      const priceMatch = trimmed.match(
         /(?:₪|ש"ח|שח)\s*(\d{1,2},?\d{3})|(\d{1,2},?\d{3})\s*(?:₪|ש"ח|שח)/
       );
       const price = priceMatch ? priceMatch[1] || priceMatch[2] : undefined;
 
       // Extract rooms
-      const roomsMatch = chunk.match(/(\d+(?:\.\d+)?)\s*(?:חדרים|חד'|חדר)/);
+      const roomsMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*(?:חדרים|חד'|חדר)/);
       const rooms = roomsMatch ? roomsMatch[1] : undefined;
 
       // Extract phone
-      const phoneMatch = chunk.match(/05\d[-\s]?\d{7}|05\d{8}/);
+      const phoneMatch = trimmed.match(/05\d[-\s]?\d{7}|05\d{8}/);
       const phone = phoneMatch ? phoneMatch[0] : undefined;
 
       // Extract location (cities and neighborhoods)
@@ -67,11 +67,10 @@ export function FacebookSmartPaste() {
         'ליד',
         'קרוב',
         'באזור',
-        'ב',
       ];
 
       let location = '';
-      const lines = chunk.split('\n');
+      const lines = trimmed.split('\n');
       lines.forEach((line) => {
         if (locationKeywords.some((keyword) => line.includes(keyword))) {
           location = line.trim();
@@ -80,9 +79,9 @@ export function FacebookSmartPaste() {
       });
 
       // If it looks like a rental post, add it
-      if (price || rooms || chunk.includes('להשכרה') || chunk.includes('השכרה')) {
+      if (price || rooms || trimmed.includes('להשכרה') || trimmed.includes('השכרה')) {
         posts.push({
-          text: chunk.trim(),
+          text: trimmed,
           author: author?.replace(/[\u200B-\u200D\uFEFF]/g, ''), // Remove zero-width chars
           price,
           rooms,

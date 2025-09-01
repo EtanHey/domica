@@ -62,7 +62,9 @@ async function scanPage() {
     setStatus('scanning', 'מחלץ נתונים...');
 
     // Send message to content script
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = await new Promise((resolve) =>
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => resolve(tabs[0]))
+    );
 
     // Set longer timeout for scanning
     let timeoutId = setTimeout(() => {
@@ -115,7 +117,9 @@ async function expandPosts() {
   setStatus('scanning', 'מרחיב פוסטים...');
   expandBtn.disabled = true;
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = await new Promise((resolve) =>
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => resolve(tabs[0]))
+  );
 
   // Inject expand script
   chrome.scripting.executeScript(

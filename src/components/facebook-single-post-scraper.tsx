@@ -386,7 +386,7 @@ export function FacebookSinglePostScraper() {
                       <p className="font-medium">{result.property.street}</p>
                     </div>
                   )}
-                  {result.property.floor !== null && (
+                  {result.property.floor != null && (
                     <div>
                       <p className="text-muted-foreground text-sm">קומה</p>
                       <p className="font-medium">{result.property.floor}</p>

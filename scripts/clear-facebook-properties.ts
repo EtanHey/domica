@@ -1,10 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
-// Use service role key for admin operations (falls back to anon key if not available)
+// Validate environment variables for admin operations
+const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl) {
+  throw new Error('SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL is required');
+}
+if (!serviceRoleKey) {
+  console.warn('Warning: SUPABASE_SERVICE_ROLE_KEY not found, using anon key. This may fail under RLS.');
+}
+
+// Use service role key for admin operations (with fallback for local dev)
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  supabaseUrl,
+  serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  }
 );
 
 // Helper function to delete in chunks to avoid param/URL limits
@@ -65,6 +82,7 @@ async function clearFacebookProperties() {
       console.log('✓ Deleted property amenities');
     } catch (error) {
       console.error('Failed to delete property amenities:', error);
+      throw error; // Fail fast to prevent FK constraint issues
     }
 
     try {
@@ -72,6 +90,7 @@ async function clearFacebookProperties() {
       console.log('✓ Deleted property images');
     } catch (error) {
       console.error('Failed to delete property images:', error);
+      throw error; // Fail fast to prevent FK constraint issues
     }
 
     try {
@@ -79,6 +98,7 @@ async function clearFacebookProperties() {
       console.log('✓ Deleted property locations');
     } catch (error) {
       console.error('Failed to delete property locations:', error);
+      throw error; // Fail fast to prevent FK constraint issues
     }
 
     try {
@@ -86,6 +106,7 @@ async function clearFacebookProperties() {
       console.log('✓ Deleted price history');
     } catch (error) {
       console.error('Failed to delete price history:', error);
+      throw error; // Fail fast to prevent FK constraint issues
     }
 
     try {
@@ -93,6 +114,7 @@ async function clearFacebookProperties() {
       console.log('✓ Deleted scrape metadata');
     } catch (error) {
       console.error('Failed to delete scrape metadata:', error);
+      throw error; // Fail fast to prevent FK constraint issues
     }
 
     // Finally, delete the properties themselves
