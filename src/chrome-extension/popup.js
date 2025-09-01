@@ -47,64 +47,61 @@ chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
 // Scan page function
 async function scanPage() {
   if (isScanning) return;
-  
+
   isScanning = true;
   setStatus('scanning', 'סורק דף...');
   scanBtn.disabled = true;
-  
+
   try {
     // Auto expand if enabled
     if (autoExpandCheckbox.checked) {
       setStatus('scanning', 'מרחיב פוסטים...');
       await expandPosts();
     }
-    
+
     setStatus('scanning', 'מחלץ נתונים...');
-    
+
     // Send message to content script
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     // Set longer timeout for scanning
     let timeoutId = setTimeout(() => {
       setStatus('error', 'הסריקה לוקחת יותר מדי זמן - נסה שוב');
       isScanning = false;
       scanBtn.disabled = false;
     }, 60000); // 60 second timeout
-    
-    chrome.tabs.sendMessage(
-      tab.id,
-      { action: 'extractPosts' },
-      (response) => {
-        clearTimeout(timeoutId);
-        
-        if (chrome.runtime.lastError) {
-          console.error('Chrome runtime error:', chrome.runtime.lastError);
-          setStatus('error', 'שגיאה בתקשורת עם הדף - רענן את הדף ונסה שוב');
-          isScanning = false;
-          scanBtn.disabled = false;
-          return;
-        }
-        
-        if (response && response.posts) {
-          extractedPosts = response.posts;
-          displayResults();
-          setStatus('success', `נמצאו ${response.posts.length} דירות`);
-          
-          // Update stats
-          totalPostsEl.textContent = response.posts.length + (parseInt(totalPostsEl.textContent) || 0);
-          rentalPostsEl.textContent = response.posts.length;
-          
-          // Enable save button
-          saveBtn.disabled = response.posts.length === 0;
-          exportBtn.disabled = response.posts.length === 0;
-        } else {
-          setStatus('error', 'לא נמצאו פוסטים להשכרה');
-        }
-        
+
+    chrome.tabs.sendMessage(tab.id, { action: 'extractPosts' }, (response) => {
+      clearTimeout(timeoutId);
+
+      if (chrome.runtime.lastError) {
+        console.error('Chrome runtime error:', chrome.runtime.lastError);
+        setStatus('error', 'שגיאה בתקשורת עם הדף - רענן את הדף ונסה שוב');
         isScanning = false;
         scanBtn.disabled = false;
+        return;
       }
-    );
+
+      if (response && response.posts) {
+        extractedPosts = response.posts;
+        displayResults();
+        setStatus('success', `נמצאו ${response.posts.length} דירות`);
+
+        // Update stats
+        totalPostsEl.textContent =
+          response.posts.length + (parseInt(totalPostsEl.textContent) || 0);
+        rentalPostsEl.textContent = response.posts.length;
+
+        // Enable save button
+        saveBtn.disabled = response.posts.length === 0;
+        exportBtn.disabled = response.posts.length === 0;
+      } else {
+        setStatus('error', 'לא נמצאו פוסטים להשכרה');
+      }
+
+      isScanning = false;
+      scanBtn.disabled = false;
+    });
   } catch (error) {
     console.error('Scan error:', error);
     setStatus('error', 'שגיאה בסריקה');
@@ -117,46 +114,49 @@ async function scanPage() {
 async function expandPosts() {
   setStatus('scanning', 'מרחיב פוסטים...');
   expandBtn.disabled = true;
-  
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
+
   // Inject expand script
-  chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: () => {
-      let expanded = 0;
-      document.querySelectorAll('div[role="button"]').forEach(button => {
-        const text = button.textContent || '';
-        if (text.match(/See more|עוד|הצג עוד|ראה עוד/)) {
-          button.click();
-          expanded++;
-        }
-      });
-      return expanded;
-    }
-  }, (results) => {
-    if (chrome.runtime.lastError) {
-      console.error('Expand error:', chrome.runtime.lastError);
-      setStatus('error', 'שגיאה בהרחבת פוסטים');
+  chrome.scripting.executeScript(
+    {
+      target: { tabId: tab.id },
+      func: () => {
+        let expanded = 0;
+        document.querySelectorAll('div[role="button"]').forEach((button) => {
+          const text = button.textContent || '';
+          if (text.match(/See more|עוד|הצג עוד|ראה עוד/)) {
+            button.click();
+            expanded++;
+          }
+        });
+        return expanded;
+      },
+    },
+    (results) => {
+      if (chrome.runtime.lastError) {
+        console.error('Expand error:', chrome.runtime.lastError);
+        setStatus('error', 'שגיאה בהרחבת פוסטים');
+        expandBtn.disabled = false;
+        return;
+      }
+
+      if (results && results[0]) {
+        const expandedCount = results[0].result;
+        setStatus('success', `הורחבו ${expandedCount} פוסטים`);
+      } else {
+        setStatus('error', 'לא נמצאו פוסטים להרחבה');
+      }
       expandBtn.disabled = false;
-      return;
     }
-    
-    if (results && results[0]) {
-      const expandedCount = results[0].result;
-      setStatus('success', `הורחבו ${expandedCount} פוסטים`);
-    } else {
-      setStatus('error', 'לא נמצאו פוסטים להרחבה');
-    }
-    expandBtn.disabled = false;
-  });
+  );
 }
 
 // Display results
 function displayResults() {
   resultsSection.classList.remove('hidden');
   resultsList.innerHTML = '';
-  
+
   extractedPosts.forEach((post, index) => {
     const item = createResultItem(post, index);
     resultsList.appendChild(item);
@@ -167,12 +167,12 @@ function displayResults() {
 function createResultItem(post, index) {
   const div = document.createElement('div');
   div.className = 'result-item';
-  
+
   // Extract key info
   const price = post.rawPrices?.[0] || 'לא צוין';
   const phone = post.phones?.[0] || '';
   const preview = post.text.substring(0, 100) + '...';
-  
+
   div.innerHTML = `
     <div class="result-item-header">
       <div class="result-item-title">דירה #${index + 1}</div>
@@ -186,7 +186,7 @@ function createResultItem(post, index) {
       ${preview}
     </div>
   `;
-  
+
   return div;
 }
 
@@ -194,29 +194,32 @@ function createResultItem(post, index) {
 async function saveToDomica() {
   setStatus('scanning', 'שומר לדומיקה...');
   saveBtn.disabled = true;
-  
+
   try {
     // Get Domica URL from settings or use default
     const domicaUrl = 'http://localhost:3001';
-    
+
     // Dynamic timeout based on number of posts
     // Each batch of 3 posts takes ~25-30 seconds (15s delay + processing)
     // Add 90 seconds buffer for network and initial processing
     const batchCount = Math.ceil(extractedPosts.length / 3);
-    const estimatedSeconds = (batchCount * 30) + 90;
+    const estimatedSeconds = batchCount * 30 + 90;
     const timeoutMs = Math.max(estimatedSeconds * 1000, 120000); // Minimum 2 minutes
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
       setStatus('error', 'הבקשה לקחה יותר מדי זמן - נסה עם פחות פוסטים');
     }, timeoutMs);
-    
+
     // Show processing status with estimated time
-    const actualEstimatedSeconds = (batchCount * 20) + 60; // More realistic estimate for display
+    const actualEstimatedSeconds = batchCount * 20 + 60; // More realistic estimate for display
     const estimatedMinutes = Math.ceil(actualEstimatedSeconds / 60);
-    setStatus('info', `מעבד ${extractedPosts.length} דירות... זה יכול לקחת עד ${estimatedMinutes} דקות`);
-    
+    setStatus(
+      'info',
+      `מעבד ${extractedPosts.length} דירות... זה יכול לקחת עד ${estimatedMinutes} דקות`
+    );
+
     const response = await fetch(`${domicaUrl}/api/chrome-extension/save`, {
       method: 'POST',
       headers: {
@@ -225,13 +228,13 @@ async function saveToDomica() {
       body: JSON.stringify({
         posts: extractedPosts,
         source: 'chrome-extension',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       }),
-      signal: controller.signal
+      signal: controller.signal,
     }).finally(() => {
       clearTimeout(timeoutId);
     });
-    
+
     if (response.ok) {
       let data;
       try {
@@ -247,12 +250,12 @@ async function saveToDomica() {
         }, 3000);
         return;
       }
-      
+
       console.log('Save response:', data);
-      
+
       // Handle different response scenarios
       const totalProcessed = (data.saved || 0) + (data.updated || 0);
-      
+
       if (totalProcessed === 0 && data.total > 0 && !data.success) {
         // Complete failure - no properties saved or updated
         setStatus('warning', data.message || `לא הצלחנו לעבד את הפוסטים - נסה שוב`);
@@ -261,7 +264,7 @@ async function saveToDomica() {
       } else if (data.updated > 0 && data.saved === 0) {
         // Only updates, no new properties
         setStatus('info', `עודכנו ${data.updated} דירות קיימות`);
-        
+
         // Clear results after updates
         setTimeout(() => {
           extractedPosts = [];
@@ -272,10 +275,11 @@ async function saveToDomica() {
         // New saves and/or updates
         let message = '';
         if (data.saved > 0) message += `נשמרו ${data.saved} דירות חדשות`;
-        if (data.updated > 0) message += `${data.saved > 0 ? ' ו' : ''}עודכנו ${data.updated} קיימות`;
-        
+        if (data.updated > 0)
+          message += `${data.saved > 0 ? ' ו' : ''}עודכנו ${data.updated} קיימות`;
+
         setStatus('success', message);
-        
+
         // Clear results after success
         setTimeout(() => {
           extractedPosts = [];
@@ -285,7 +289,7 @@ async function saveToDomica() {
       } else {
         // No new properties found
         setStatus('info', data.message || 'לא נמצאו דירות חדשות לשמירה');
-        
+
         setTimeout(() => {
           extractedPosts = [];
           resultsSection.classList.add('hidden');
@@ -300,7 +304,7 @@ async function saveToDomica() {
   } catch (error) {
     console.error('Save error:', error);
     console.error('Error details:', error.message, error.stack);
-    
+
     // Try to determine the specific error
     let errorMessage = 'שגיאה בשמירה';
     if (error.name === 'AbortError') {
@@ -311,7 +315,7 @@ async function saveToDomica() {
     } else if (error.message.includes('CORS')) {
       errorMessage = 'שגיאת CORS - בדוק הרשאות';
     }
-    
+
     setStatus('error', errorMessage);
     saveBtn.disabled = false;
   }
@@ -320,15 +324,15 @@ async function saveToDomica() {
 // Export JSON
 function exportJSON() {
   const dataStr = JSON.stringify(extractedPosts, null, 2);
-  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-  
+  const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
   const exportFileDefaultName = `facebook-posts-${new Date().toISOString().split('T')[0]}.json`;
-  
+
   const linkElement = document.createElement('a');
   linkElement.setAttribute('href', dataUri);
   linkElement.setAttribute('download', exportFileDefaultName);
   linkElement.click();
-  
+
   setStatus('success', 'הקובץ הורד');
 }
 
@@ -342,7 +346,7 @@ function setStatus(type, message) {
 function openHelp(e) {
   e.preventDefault();
   chrome.tabs.create({
-    url: 'https://github.com/yourusername/domica-extension/wiki'
+    url: 'https://github.com/yourusername/domica-extension/wiki',
   });
 }
 

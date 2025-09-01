@@ -88,7 +88,9 @@ ${posts}`;
         // Validate media type
         const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         if (!supportedTypes.includes(mediaType)) {
-          throw new Error(`Unsupported image type: ${mediaType}. Supported types: ${supportedTypes.join(', ')}`);
+          throw new Error(
+            `Unsupported image type: ${mediaType}. Supported types: ${supportedTypes.join(', ')}`
+          );
         }
 
         return {

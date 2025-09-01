@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         // Check for duplicates before saving
         const pricePerMonth = parseFloat(property.pricePerMonth) || 0;
         const phoneNormalized = property.contactPhone?.replace(/\D/g, '') || null;
-        
+
         // Build duplicate check query
         let duplicateQuery = supabase
           .from('properties')
@@ -33,38 +33,38 @@ export async function POST(request: NextRequest) {
           .eq('bedrooms', property.bedrooms || null)
           .eq('source_platform', 'facebook')
           .eq('is_active', true);
-          
+
         // Add phone check if available
         if (phoneNormalized) {
           duplicateQuery = duplicateQuery.eq('phone_normalized', phoneNormalized);
         }
-        
+
         const { data: existingProperties, error: duplicateCheckError } = await duplicateQuery;
-        
+
         if (duplicateCheckError) {
           console.error('Duplicate check error:', duplicateCheckError);
         } else if (existingProperties && existingProperties.length > 0) {
           // Check location similarity for potential duplicates
           if (property.locationText) {
             const [newCity] = property.locationText.split(',').map((s: string) => s.trim());
-            
+
             // Get locations for existing properties
-            const propertyIds = existingProperties.map(p => p.id);
+            const propertyIds = existingProperties.map((p) => p.id);
             const { data: locations } = await supabase
               .from('property_location')
               .select('property_id, city, neighborhood')
               .in('property_id', propertyIds);
-              
+
             // Check if any have matching city
-            const isDuplicate = locations?.some(loc => 
-              loc.city?.toLowerCase() === newCity?.toLowerCase()
+            const isDuplicate = locations?.some(
+              (loc) => loc.city?.toLowerCase() === newCity?.toLowerCase()
             );
-            
+
             if (isDuplicate) {
               duplicates.push({
                 property: property.title,
                 reason: 'דירה דומה כבר קיימת במערכת',
-                existing: existingProperties[0].title
+                existing: existingProperties[0].title,
               });
               continue; // Skip this property
             }

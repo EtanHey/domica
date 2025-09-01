@@ -8,40 +8,37 @@ class FacebookPostExtractor {
   extractPosts() {
     const posts = [];
     const processedTexts = new Set(); // Track unique posts
-    
+
     console.log('🔍 Starting post extraction...');
-    
+
     // Facebook uses different structures for posts
     // Look for posts with multiple approaches
     let postElements = [];
-    
+
     // Debug: Log current page info
     console.log('Page URL:', window.location.href);
     console.log('Page height:', document.body.scrollHeight);
-    
+
     // Method 1: Look for all role="article" elements first
     const articles = document.querySelectorAll('[role="article"]');
     console.log(`Found ${articles.length} article elements`);
     postElements.push(...articles);
-    
+
     // Method 2: Look for feed containers and posts within them
-    const feedSelectors = [
-      '[role="feed"]',
-      'div[data-pagelet*="FeedUnit"]'
-    ];
-    
+    const feedSelectors = ['[role="feed"]', 'div[data-pagelet*="FeedUnit"]'];
+
     for (const selector of feedSelectors) {
       const elements = document.querySelectorAll(selector);
       if (elements.length > 0) {
         console.log(`Found ${elements.length} elements with selector: ${selector}`);
-        elements.forEach(el => {
+        elements.forEach((el) => {
           if (!postElements.includes(el)) {
             postElements.push(el);
           }
         });
       }
     }
-    
+
     // Method 2: If no feed found, look for individual posts
     if (postElements.length === 0) {
       // Look for posts by their structure
@@ -51,9 +48,9 @@ class FacebookPostExtractor {
         // Posts often have this structure
         'div[data-pagelet*="FeedUnit"]',
         // Alternative structure
-        'div[class*="x1yztbdb"][class*="x1n2onr6"]'
+        'div[class*="x1yztbdb"][class*="x1n2onr6"]',
       ];
-      
+
       for (const selector of postSelectors) {
         const elements = document.querySelectorAll(selector);
         if (elements.length > 0) {
@@ -63,95 +60,100 @@ class FacebookPostExtractor {
         }
       }
     }
-    
+
     // Method 3: Fallback - look for any posts with text content
     if (postElements.length === 0) {
       console.log('Using fallback method to find posts...');
       // Look for containers with substantial text
       const allDivs = document.querySelectorAll('div');
-      allDivs.forEach(div => {
+      allDivs.forEach((div) => {
         const text = div.textContent || '';
         // Check if it looks like a post
-        if (text.length > 100 && 
-            text.match(/[א-ת]/) && 
-            (text.includes('להשכרה') || text.includes('דירה') || text.includes('חדרים')) &&
-            !div.querySelector('div[role="article"]')) { // Avoid nested posts
+        if (
+          text.length > 100 &&
+          text.match(/[א-ת]/) &&
+          (text.includes('להשכרה') || text.includes('דירה') || text.includes('חדרים')) &&
+          !div.querySelector('div[role="article"]')
+        ) {
+          // Avoid nested posts
           postElements.push(div);
         }
       });
       console.log(`Fallback method found ${postElements.length} potential posts`);
     }
-    
+
     console.log(`Total post elements found: ${postElements.length}`);
-    
+
     // Filter and process posts
     const uniquePosts = new Map();
-    
+
     postElements.forEach((element, index) => {
       try {
         // Skip if this is inside a comment section
-        const isInCommentSection = element.closest('[aria-label*="Comment"]') || 
-                                  element.closest('[aria-label*="תגובה"]') ||
-                                  element.closest('[role="complementary"]');
-        
+        const isInCommentSection =
+          element.closest('[aria-label*="Comment"]') ||
+          element.closest('[aria-label*="תגובה"]') ||
+          element.closest('[role="complementary"]');
+
         if (isInCommentSection) {
           console.log(`Skipping element ${index}: inside comment section`);
           return;
         }
-        
+
         // Look for the main content area of the post
         const contentSelectors = [
           '[data-ad-preview="message"]',
           'div[dir="auto"][style*="text-align"]',
           'div[data-testid="post_message"]',
-          'span[dir="auto"]'
+          'span[dir="auto"]',
         ];
-        
+
         let postContent = '';
         for (const selector of contentSelectors) {
           const contentElements = element.querySelectorAll(selector);
           if (contentElements.length > 0) {
             const texts = Array.from(contentElements)
-              .map(el => el.textContent.trim())
-              .filter(text => text.length > 20);
+              .map((el) => el.textContent.trim())
+              .filter((text) => text.length > 20);
             if (texts.length > 0) {
               postContent = texts.join('\n');
               break;
             }
           }
         }
-        
+
         // If no content found with specific selectors, try general approach
         if (!postContent) {
           const allTexts = element.querySelectorAll('div[dir="auto"], span[dir="auto"]');
           const texts = Array.from(allTexts)
-            .filter(el => !el.closest('[aria-label*="Like"]') && !el.closest('[aria-label*="Comment"]'))
-            .map(el => el.textContent.trim())
-            .filter(text => text.length > 20);
+            .filter(
+              (el) => !el.closest('[aria-label*="Like"]') && !el.closest('[aria-label*="Comment"]')
+            )
+            .map((el) => el.textContent.trim())
+            .filter((text) => text.length > 20);
           postContent = texts.join('\n');
         }
-        
+
         // Skip if no content at all
         if (!postContent || postContent.length < 20) {
           console.log(`Skipping element ${index}: no content (${postContent.length} chars)`);
           return;
         }
-        
+
         // Skip if doesn't contain Hebrew
         if (!postContent.match(/[א-ת]/)) {
           console.log(`Skipping element ${index}: no Hebrew content`);
           return;
         }
-        
+
         // Add all posts, even potential duplicates
         uniquePosts.set(`post_${index}_${Date.now()}`, element);
         console.log(`Added element ${index} as post`);
-        
       } catch (e) {
         console.error(`Error processing element ${index}:`, e);
       }
     });
-    
+
     console.log(`Filtered to ${uniquePosts.size} unique posts`);
 
     // Process unique posts
@@ -161,7 +163,7 @@ class FacebookPostExtractor {
         const postData = this.extractPostData(element);
         if (postData && postData.text) {
           console.log(`Processing post ${processedCount}: ${postData.text.substring(0, 50)}...`);
-          
+
           if (this.isRentalPost(postData)) {
             posts.push(postData);
             console.log(`✅ Added as rental post #${posts.length}`);
@@ -182,54 +184,59 @@ class FacebookPostExtractor {
   // Extract data from a single post
   extractPostData(postElement) {
     console.log('📋 Extracting data from post element...');
-    
+
     // Get all text content from the post
     let fullText = '';
     const texts = [];
-    
+
     // Method 1: Look for main post content area
-    const contentAreas = postElement.querySelectorAll('[data-ad-preview="message"], [data-testid="post_message"]');
+    const contentAreas = postElement.querySelectorAll(
+      '[data-ad-preview="message"], [data-testid="post_message"]'
+    );
     if (contentAreas.length > 0) {
-      contentAreas.forEach(area => {
+      contentAreas.forEach((area) => {
         const text = area.textContent.trim();
         if (text && !texts.includes(text)) {
           texts.push(text);
         }
       });
     }
-    
+
     // Method 2: Get text from styled divs (Facebook's text containers)
     if (texts.length === 0) {
       const textElements = postElement.querySelectorAll('div[dir="auto"], span[dir="auto"]');
-      
-      textElements.forEach(el => {
+
+      textElements.forEach((el) => {
         // Skip if it's inside reactions, comments, or other UI elements
-        const isUIElement = el.closest('[aria-label*="Like"]') ||
-                           el.closest('[aria-label*="Comment"]') ||
-                           el.closest('[aria-label*="Share"]') ||
-                           el.closest('[role="button"]') ||
-                           el.closest('[aria-label*="תגובה"]');
-        
+        const isUIElement =
+          el.closest('[aria-label*="Like"]') ||
+          el.closest('[aria-label*="Comment"]') ||
+          el.closest('[aria-label*="Share"]') ||
+          el.closest('[role="button"]') ||
+          el.closest('[aria-label*="תגובה"]');
+
         if (!isUIElement) {
           const text = el.textContent.trim();
           // Only add substantial text that's not already included
-          if (text && text.length > 10 && !texts.some(t => t.includes(text))) {
+          if (text && text.length > 10 && !texts.some((t) => t.includes(text))) {
             texts.push(text);
           }
         }
       });
     }
-    
+
     // Remove duplicates and join
     fullText = [...new Set(texts)].join('\n');
-    
+
     console.log(`Extracted text (${fullText.length} chars): ${fullText.substring(0, 100)}...`);
 
     // Get author name - look for profile link
     let author = '';
-    
+
     // Method 1: Look for profile links with strong text
-    const profileLinks = postElement.querySelectorAll('a[role="link"][href*="/user/"], a[role="link"][href*="/profile.php"]');
+    const profileLinks = postElement.querySelectorAll(
+      'a[role="link"][href*="/user/"], a[role="link"][href*="/profile.php"]'
+    );
     for (const link of profileLinks) {
       const strongEl = link.querySelector('strong');
       if (strongEl && strongEl.textContent.trim()) {
@@ -237,7 +244,7 @@ class FacebookPostExtractor {
         break;
       }
     }
-    
+
     // Method 2: Look for author name in header area
     if (!author) {
       const headerArea = postElement.querySelector('h3, h4');
@@ -250,19 +257,23 @@ class FacebookPostExtractor {
     }
 
     // Get post time
-    const timeElement = postElement.querySelector('a[role="link"] span, [data-testid="post_timestamp"]');
+    const timeElement = postElement.querySelector(
+      'a[role="link"] span, [data-testid="post_timestamp"]'
+    );
     const postTime = timeElement ? timeElement.textContent : '';
-    
+
     console.log('Extracted post data:', {
       textLength: fullText.length,
       author: author,
-      firstChars: fullText.substring(0, 50)
+      firstChars: fullText.substring(0, 50),
     });
 
     // Get images
     const images = [];
-    const imageElements = postElement.querySelectorAll('img[referrerpolicy="origin-when-cross-origin"]');
-    imageElements.forEach(img => {
+    const imageElements = postElement.querySelectorAll(
+      'img[referrerpolicy="origin-when-cross-origin"]'
+    );
+    imageElements.forEach((img) => {
       if (img.src && !img.src.includes('emoji') && img.width > 100) {
         images.push(img.src);
       }
@@ -271,7 +282,7 @@ class FacebookPostExtractor {
     // Get post URL
     const linkElements = postElement.querySelectorAll('a[href*="/groups/"][role="link"]');
     let postUrl = '';
-    linkElements.forEach(link => {
+    linkElements.forEach((link) => {
       if (link.href.includes('posts/') || link.href.includes('permalink/')) {
         postUrl = link.href;
       }
@@ -284,7 +295,7 @@ class FacebookPostExtractor {
     // Extract price
     const priceRegex = /(?:₪|ש"ח|שח)\s*(\d{1,2},?\d{3})|(\d{1,2},?\d{3})\s*(?:₪|ש"ח|שח)/g;
     const priceMatches = fullText.match(priceRegex) || [];
-    
+
     return {
       text: fullText.trim(),
       author,
@@ -293,41 +304,60 @@ class FacebookPostExtractor {
       postUrl,
       phones: [...new Set(phones)],
       rawPrices: priceMatches,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
   // Check if post is likely a rental listing (offering, not seeking)
   isRentalPost(postData) {
     const text = postData.text.toLowerCase();
-    
+
     // Keywords indicating someone is OFFERING a rental
     const offerKeywords = [
-      'להשכרה', 'להשכיר', 'פנויה', 'פנוי', 'כניסה מיידית',
-      'דירת', 'דירה', 'חדרים', 'חד׳', 'סטודיו', 'יחידה'
+      'להשכרה',
+      'להשכיר',
+      'פנויה',
+      'פנוי',
+      'כניסה מיידית',
+      'דירת',
+      'דירה',
+      'חדרים',
+      'חד׳',
+      'סטודיו',
+      'יחידה',
     ];
-    
+
     // Keywords indicating someone is LOOKING for a rental
     const seekingKeywords = [
-      'מחפש', 'מחפשת', 'מחפשים', 'מחפשות',
-      'מעוניין', 'מעוניינת', 'מעוניינים',
-      'צריך', 'צריכה', 'זקוק', 'דרוש', 'דרושה'
+      'מחפש',
+      'מחפשת',
+      'מחפשים',
+      'מחפשות',
+      'מעוניין',
+      'מעוניינת',
+      'מעוניינים',
+      'צריך',
+      'צריכה',
+      'זקוק',
+      'דרוש',
+      'דרושה',
     ];
-    
+
     // Must have offer keywords OR be long enough with price
-    const hasOfferKeyword = offerKeywords.some(keyword => text.includes(keyword));
-    
+    const hasOfferKeyword = offerKeywords.some((keyword) => text.includes(keyword));
+
     // Should NOT have seeking keywords (or they should appear after offer keywords)
-    const hasSeeking = seekingKeywords.some(keyword => text.includes(keyword));
-    
+    const hasSeeking = seekingKeywords.some((keyword) => text.includes(keyword));
+
     // Additional checks for price mentions (strong indicator of offer)
     const hasPrice = /₪|ש"ח|שח|\d+,?\d{3}/.test(text);
-    
+
     // More lenient check - if it has Hebrew and mentions numbers/price, consider it
-    const isOffer = (hasOfferKeyword && !hasSeeking) || 
-                    (hasPrice && text.length > 100 && !hasSeeking) ||
-                    (hasOfferKeyword && hasPrice);
-    
+    const isOffer =
+      (hasOfferKeyword && !hasSeeking) ||
+      (hasPrice && text.length > 100 && !hasSeeking) ||
+      (hasOfferKeyword && hasPrice);
+
     // Debug logging
     console.log('Post analysis:', {
       text: text.substring(0, 100),
@@ -335,9 +365,9 @@ class FacebookPostExtractor {
       hasSeeking,
       hasPrice,
       isOffer,
-      author: postData.author
+      author: postData.author,
     });
-    
+
     return isOffer;
   }
 
@@ -345,16 +375,16 @@ class FacebookPostExtractor {
   async expandAllPosts() {
     const buttons = document.querySelectorAll('div[role="button"]');
     let expanded = 0;
-    
+
     for (const button of buttons) {
       const text = button.textContent || '';
       if (text.match(/See more|עוד|הצג עוד|ראה עוד/)) {
         button.click();
         expanded++;
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
-    
+
     return expanded;
   }
 
@@ -363,43 +393,43 @@ class FacebookPostExtractor {
     console.log('📜 Scrolling to load more posts...');
     let lastHeight = document.body.scrollHeight;
     let scrollCount = 0;
-    
+
     while (scrollCount < maxScrolls) {
       window.scrollTo(0, document.body.scrollHeight);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       const newHeight = document.body.scrollHeight;
       if (newHeight === lastHeight) {
         console.log('No more posts to load');
         break;
       }
-      
+
       lastHeight = newHeight;
       scrollCount++;
       console.log(`Scroll ${scrollCount}: Loaded more posts (height: ${newHeight})`);
     }
-    
+
     // Scroll back to top
     window.scrollTo(0, 0);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     return scrollCount;
   }
-  
+
   // Main extraction process
   async extract() {
     console.log('📜 Loading all posts...');
     const scrolls = await this.scrollToLoadPosts();
     console.log(`✅ Completed ${scrolls} scrolls`);
-    
+
     console.log('🔄 Expanding posts...');
     const expanded = await this.expandAllPosts();
     console.log(`✅ Expanded ${expanded} posts`);
-    
+
     console.log('📊 Extracting post data...');
     const posts = this.extractPosts();
     console.log(`✅ Found ${posts.length} rental posts`);
-    
+
     return posts;
   }
 }
@@ -410,16 +440,16 @@ const extractor = new FacebookPostExtractor();
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request);
-  
+
   // Ping response
   if (request.action === 'ping') {
     sendResponse({ status: 'ready' });
     return false;
   }
-  
+
   if (request.action === 'extractPosts') {
     console.log('Starting full post extraction with scrolling...');
-    
+
     // Use async function to handle the extraction
     (async () => {
       try {
@@ -431,11 +461,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ error: error.message });
       }
     })();
-    
+
     // Return true to indicate async response
     return true;
   }
-  
+
   if (request.action === 'quickExtract') {
     // Quick extract without scrolling
     console.log('Quick extraction (no scrolling)...');

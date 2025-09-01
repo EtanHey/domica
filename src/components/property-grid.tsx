@@ -54,8 +54,7 @@ export function PropertyGrid({
           : `${base}/${listingType}/${newPage}`;
     } else {
       // Original routing for other sections
-      newPath =
-        listingType === ListingType.All ? `/${newPage}` : `/${listingType}/${newPage}`;
+      newPath = listingType === ListingType.All ? `/${newPage}` : `/${listingType}/${newPage}`;
     }
 
     // Navigate without auto-scroll, then smooth scroll manually

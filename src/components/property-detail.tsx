@@ -289,8 +289,8 @@ export function PropertyDetail({ property, masterProperty, duplicates = [] }: Pr
                 )}
 
                 {(property.phone_normalized || property.contact_phone) && (
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     size="lg"
                     onClick={() => {
                       const phone = property.contact_phone || property.phone_normalized;

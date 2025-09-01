@@ -124,7 +124,7 @@ export function FacebookParser() {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        
+
         // Calculate size reduction if needed - use larger dimension for better text clarity
         const maxDimension = 3000; // Increased for better text recognition
         if (width > maxDimension || height > maxDimension) {
@@ -136,23 +136,23 @@ export function FacebookParser() {
             height = maxDimension;
           }
         }
-        
+
         canvas.width = width;
         canvas.height = height;
-        
+
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        
+
         // Start with high quality for better text recognition
         let quality = 0.95;
         let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-        
+
         // Reduce quality minimally to preserve text clarity
         while (compressedDataUrl.length > maxSizeMB * 1024 * 1024 * 1.37 && quality > 0.7) {
           quality -= 0.05;
           compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
         }
-        
+
         resolve(compressedDataUrl);
       };
       img.src = dataUrl;
@@ -161,18 +161,25 @@ export function FacebookParser() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+    const supportedTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'application/pdf',
+    ];
 
     for (const file of files) {
-      const isSupported = supportedTypes.some(type => 
-        file.type === type || file.type === type.replace('jpg', 'jpeg')
+      const isSupported = supportedTypes.some(
+        (type) => file.type === type || file.type === type.replace('jpg', 'jpeg')
       );
-      
+
       if (isSupported) {
         const reader = new FileReader();
         reader.onload = async (event) => {
           const dataUrl = event.target?.result as string;
-          
+
           // For PDFs or when using Google AI, no compression needed
           if (file.type === 'application/pdf' || useGoogleAI) {
             setUploadedImages((prev) => [...prev, dataUrl]);
@@ -184,7 +191,7 @@ export function FacebookParser() {
                 title: '🔄 דחיסת תמונה',
                 description: 'התמונה גדולה מדי, מבצע דחיסה...',
               });
-              
+
               try {
                 const compressedDataUrl = await compressImage(dataUrl, 3);
                 setUploadedImages((prev) => [...prev, compressedDataUrl]);
@@ -247,10 +254,11 @@ export function FacebookParser() {
       }
 
       // Call AI parsing API
-      const apiEndpoint = inputMode === 'image' && useGoogleAI 
-        ? '/api/parse-rental-posts-google' 
-        : '/api/parse-rental-posts';
-      
+      const apiEndpoint =
+        inputMode === 'image' && useGoogleAI
+          ? '/api/parse-rental-posts-google'
+          : '/api/parse-rental-posts';
+
       const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
@@ -345,21 +353,21 @@ export function FacebookParser() {
       if (data.duplicates && data.duplicates.length > 0) {
         console.log('Duplicates found:', data.duplicates);
       }
-      
+
       if (data.errors && data.errors.length > 0) {
         console.error('Save errors:', data.errors);
       }
-      
+
       // Choose toast variant based on outcome
       let toastVariant: 'default' | 'destructive' = 'default';
       let toastTitle = '✅ הפעולה הושלמה';
-      
+
       if (data.count === 0 && data.duplicatesFound > 0) {
         toastTitle = '⚠️ לא נוספו דירות חדשות';
       } else if (data.errors && data.errors.length > 0) {
         toastTitle = '⚠️ שמירה חלקית';
       }
-      
+
       toast({
         title: toastTitle,
         description: data.message,
@@ -419,12 +427,12 @@ export function FacebookParser() {
               <div className="space-y-4">
                 <Alert>
                   <AlertDescription>
-                    <strong>איך זה עובד:</strong> 
+                    <strong>איך זה עובד:</strong>
                     <br />
                     <strong>לטקסט:</strong> העתק פוסטים מקבוצות פייסבוק (Ctrl+C) והדבק למטה
                     <br />
-                    <strong>לתמונות/PDF:</strong> 
-                    <ol className="list-decimal list-inside mt-2 space-y-1">
+                    <strong>לתמונות/PDF:</strong>
+                    <ol className="mt-2 list-inside list-decimal space-y-1">
                       <li>פתח את קבוצת הפייסבוק</li>
                       <li>השתמש בסקריפט להרחבת "עוד" (ראה הוראות למטה)</li>
                       <li>צלם מסך או שמור כ-PDF</li>
@@ -434,14 +442,16 @@ export function FacebookParser() {
                       <summary className="cursor-pointer text-sm font-medium hover:text-blue-600">
                         📖 הוראות להרחבת פוסטים בפייסבוק
                       </summary>
-                      <div className="mt-2 text-sm space-y-2 bg-gray-50 dark:bg-gray-900 p-3 rounded">
-                        <p><strong>שיטה מהירה:</strong></p>
-                        <code className="block p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto">
+                      <div className="mt-2 space-y-2 rounded bg-gray-50 p-3 text-sm dark:bg-gray-900">
+                        <p>
+                          <strong>שיטה מהירה:</strong>
+                        </p>
+                        <code className="block overflow-x-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
                           document.querySelectorAll('div[role="button"]').forEach(b =&gt; {'{'}
-                            if (b.textContent?.match(/עוד|See more/)) b.click();
+                          if (b.textContent?.match(/עוד|See more/)) b.click();
                           {'}'});
                         </code>
-                        <p className="text-xs mt-2">
+                        <p className="mt-2 text-xs">
                           1. לחץ F12 בדפדפן → Console
                           <br />
                           2. הדבק את הקוד ולחץ Enter
@@ -608,7 +618,7 @@ export function FacebookParser() {
                               לחץ להעלאת תמונות או PDF
                             </span>
                             <span className="text-muted-foreground text-xs">
-                              {useGoogleAI 
+                              {useGoogleAI
                                 ? 'PDF, PNG, JPG, WEBP, GIF • Google AI לזיהוי טקסט מדויק'
                                 : 'PNG, JPG, WEBP, GIF • תמונות גדולות ידחסו אוטומטית'}
                             </span>

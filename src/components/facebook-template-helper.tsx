@@ -22,7 +22,7 @@ export function FacebookTemplateHelper() {
     description: '',
     amenities: '',
     phone: '',
-    available: ''
+    available: '',
   });
 
   const template = `📋 תבנית להעתקת מודעה מפייסבוק:
@@ -95,7 +95,7 @@ ${formData.amenities}`;
       amenities: (() => {
         const match = text.match(/מה יש בדירה:\s*\n([\s\S]+)/);
         return match ? match[1].trim() : '';
-      })()
+      })(),
     });
 
     toast({
@@ -108,10 +108,10 @@ ${formData.amenities}`;
     <div className="space-y-6">
       {/* Template Section */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">תבנית להעתקה ידנית</h3>
+        <h3 className="mb-4 text-lg font-semibold">תבנית להעתקה ידנית</h3>
         <div className="space-y-4">
-          <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-            <pre className="text-sm whitespace-pre-wrap font-mono" dir="rtl">
+          <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-900">
+            <pre className="font-mono text-sm whitespace-pre-wrap" dir="rtl">
               {template}
             </pre>
           </div>
@@ -124,7 +124,7 @@ ${formData.amenities}`;
 
       {/* Form Section */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">או מלא כאן ישירות</h3>
+        <h3 className="mb-4 text-lg font-semibold">או מלא כאן ישירות</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="rooms">חדרים</Label>
@@ -181,7 +181,7 @@ ${formData.amenities}`;
             />
           </div>
         </div>
-        
+
         <div className="mt-4">
           <Label htmlFor="description">תיאור</Label>
           <Textarea
@@ -193,7 +193,7 @@ ${formData.amenities}`;
           />
         </div>
 
-        <Button 
+        <Button
           className="mt-4 w-full gap-2"
           onClick={() => {
             const filled = generateFilledTemplate();
