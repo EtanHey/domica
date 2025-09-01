@@ -932,10 +932,17 @@ ${postContent}
     }
   } catch (error: any) {
     console.error('API error:', error);
+    
+    // Sanitize error messages for production
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const errorMessage = isDevelopment
+      ? error.message || 'Failed to scrape post'
+      : 'An error occurred while processing your request';
+    
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to scrape post',
+        error: errorMessage,
       },
       { status: 500 }
     );
