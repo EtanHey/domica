@@ -5,17 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Link, Check, X, Copy, ExternalLink, FileText, AlertCircle } from 'lucide-react';
+import { Loader2, Link, Check, X, Copy, ExternalLink, FileText, AlertCircle, Save, CheckCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 export function FacebookSinglePostScraper() {
   const [url, setUrl] = useState('');
   const [manualText, setManualText] = useState('');
+  const [yad2Url, setYad2Url] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const testUrls = [
     'https://www.facebook.com/share/p/17AED63Dmv/',
@@ -72,6 +77,74 @@ export function FacebookSinglePostScraper() {
     navigator.clipboard.writeText(text);
   };
 
+  const handleSave = async () => {
+    if (!result?.property) return;
+
+    setSaving(true);
+    setSaved(false);
+
+    try {
+      // Prepare property data for saving
+      const propertyToSave = {
+        title: result.property.title,
+        pricePerMonth: result.property.pricePerMonth,
+        currency: result.property.currency || 'ILS',
+        locationText: `${result.property.city || ''}${result.property.neighborhood ? ', ' + result.property.neighborhood : ''}`,
+        city: result.property.city,
+        neighborhood: result.property.neighborhood,
+        street: result.property.street,
+        bedrooms: result.property.bedrooms,
+        size: result.property.size,
+        floor: result.property.floor,
+        description: result.property.description,
+        amenities: result.property.amenities || [],
+        contactPhone: result.property.contactPhone,
+        contactName: result.property.contactName,
+        availableFrom: result.property.availableFrom,
+        sourceUrl: result.property.sourceUrl,
+        yad2Url: result.property.yad2Url,
+        listingType: result.property.listingType || 'rent',
+        images: result.property.images?.map((url: string) => ({ imageUrl: url })) || [],
+      };
+
+      const response = await fetch('/api/save-facebook-properties', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          properties: [propertyToSave],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check for database unavailable error
+        if (response.status === 503) {
+          throw new Error(data.hint || data.error || 'הדאטאבייס לא זמין כרגע. נא לנסות שוב בעוד מספר דקות.');
+        }
+        throw new Error(data.error || 'Failed to save properties');
+      }
+      
+      if (data.count > 0) {
+        setSaved(true);
+        // Keep saved state for 3 seconds
+        setTimeout(() => setSaved(false), 3000);
+      } else if (data.duplicatesFound > 0) {
+        setError('נכס זה כבר קיים במערכת');
+        setTimeout(() => setError(null), 3000);
+      } else {
+        throw new Error(data.message || 'שגיאה בשמירת הנכס');
+      }
+    } catch (err: any) {
+      setError(err.message || 'שגיאה בשמירת הנכס');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatPrice = (price: string | number) => {
     const num = typeof price === 'string' ? parseFloat(price) : price;
     return new Intl.NumberFormat('he-IL', {
@@ -91,9 +164,10 @@ export function FacebookSinglePostScraper() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Tabs defaultValue="url" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="url">קישור לפוסט</TabsTrigger>
               <TabsTrigger value="text">הדבקת טקסט</TabsTrigger>
+              <TabsTrigger value="yad2">הוספת יד2</TabsTrigger>
             </TabsList>
 
             <TabsContent value="url" className="space-y-4">
@@ -187,6 +261,58 @@ export function FacebookSinglePostScraper() {
                 )}
               </Button>
             </TabsContent>
+            
+            <TabsContent value="yad2" className="space-y-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>הוסף קישור יד2</AlertTitle>
+                <AlertDescription>
+                  אם יש לך קישור ליד2 של הנכס, הוסף אותו כאן לקבלת מידע מלא
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-4">
+                <Input
+                  type="url"
+                  placeholder="https://www.yad2.co.il/realestate/item/..."
+                  value={yad2Url}
+                  onChange={(e) => setYad2Url(e.target.value)}
+                  dir="ltr"
+                  disabled={loading}
+                />
+                
+                <Textarea
+                  placeholder="הדבק כאן את תוכן הפוסט מפייסבוק..."
+                  value={manualText}
+                  onChange={(e) => setManualText(e.target.value)}
+                  className="min-h-[150px]"
+                  dir="rtl"
+                  disabled={loading}
+                />
+
+                <Button
+                  onClick={() => {
+                    // Create a combined request with both Yad2 URL and text
+                    const combinedText = manualText + (yad2Url ? `\n${yad2Url}` : '');
+                    handleScrape(undefined, combinedText);
+                  }}
+                  disabled={loading || (!manualText && !yad2Url)}
+                  className="w-full"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                      ממזג נתונים...
+                    </>
+                  ) : (
+                    <>
+                      <Link className="ml-2 h-4 w-4" />
+                      מזג נתונים מפייסבוק ויד2
+                    </>
+                  )}
+                </Button>
+              </div>
+            </TabsContent>
           </Tabs>
 
           {error && (
@@ -209,6 +335,14 @@ export function FacebookSinglePostScraper() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {result.property.yad2Url && (
+                  <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium">נתונים משולבים מפייסבוק ויד2</span>
+                    <Badge variant="secondary" className="mr-auto">מידע מועשר</Badge>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-muted-foreground text-sm">כותרת</p>
@@ -227,7 +361,12 @@ export function FacebookSinglePostScraper() {
                   {result.property.size && (
                     <div>
                       <p className="text-muted-foreground text-sm">גודל</p>
-                      <p className="font-medium">{result.property.size} מ"ר</p>
+                      <p className="font-medium">
+                        {result.property.size} מ"ר
+                        {result.debug?.yad2Scraped && (
+                          <Badge variant="outline" className="mr-2 text-xs">מיד2</Badge>
+                        )}
+                      </p>
                     </div>
                   )}
                   {result.property.city && (
@@ -278,7 +417,9 @@ export function FacebookSinglePostScraper() {
 
                 {result.property.amenities && result.property.amenities.length > 0 && (
                   <div>
-                    <p className="text-muted-foreground mb-2 text-sm">מאפיינים</p>
+                    <p className="text-muted-foreground mb-2 text-sm">
+                      מאפיינים {result.debug?.yad2Scraped && `(${result.property.amenities.length} פריטים משולבים)`}
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {result.property.amenities.map((amenity: string, index: number) => (
                         <span key={index} className="bg-muted rounded-md px-2 py-1 text-sm">
@@ -292,15 +433,59 @@ export function FacebookSinglePostScraper() {
                 {result.property.description && (
                   <div>
                     <p className="text-muted-foreground mb-2 text-sm">תיאור</p>
-                    <Textarea
-                      value={result.property.description}
-                      readOnly
-                      className="min-h-[100px]"
-                    />
+                    {result.property.description.includes('[מידע נוסף מיד2]') ? (
+                      <div className="space-y-2">
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                          <p className="text-sm font-medium mb-1">מפייסבוק:</p>
+                          <p className="text-sm">{result.property.description.split('[מידע נוסף מיד2]')[0].trim()}</p>
+                        </div>
+                        <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                          <p className="text-sm font-medium mb-1">מיד2:</p>
+                          <p className="text-sm">{result.property.description.split('[מידע נוסף מיד2]')[1].trim()}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <Textarea
+                        value={result.property.description}
+                        readOnly
+                        className="min-h-[100px]"
+                      />
+                    )}
                   </div>
                 )}
 
                 <div className="flex gap-2">
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving || saved}
+                    variant={saved ? 'secondary' : 'default'}
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        שומר...
+                      </>
+                    ) : saved ? (
+                      <>
+                        <CheckCircle className="ml-2 h-4 w-4 text-green-500" />
+                        נשמר בהצלחה
+                      </>
+                    ) : (
+                      <>
+                        <Save className="ml-2 h-4 w-4" />
+                        שמור נכס
+                      </>
+                    )}
+                  </Button>
+                  {result.property.yad2Url && (
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open(result.property.yad2Url, '_blank')}
+                    >
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                      פתח ביד2
+                    </Button>
+                  )}
                   {result.property.sourceUrl && result.property.sourceUrl !== 'manual-input' && (
                     <Button
                       variant="outline"
@@ -326,6 +511,9 @@ export function FacebookSinglePostScraper() {
                     </p>
                     <p>אורך תוכן: {result.debug.contentLength} תווים</p>
                     <p>שדות שחולצו: {result.debug.extractedFields}</p>
+                    {result.debug.yad2Scraped && (
+                      <p className="text-green-600">✓ נתונים מיד2 נוספו בהצלחה</p>
+                    )}
                   </div>
                 )}
               </CardContent>
