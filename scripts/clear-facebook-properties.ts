@@ -1,10 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
+// Use service role key for admin operations (falls back to anon key if not available)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// Helper function to delete in chunks to avoid param/URL limits
+async function deleteInChunks(table: string, column: string, ids: string[], chunkSize = 500) {
+  let deletedCount = 0;
+  
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const batch = ids.slice(i, i + chunkSize);
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .in(column, batch);
+    
+    if (error) {
+      console.error(`Error deleting from ${table} (batch ${Math.floor(i/chunkSize) + 1}):`, error);
+      throw error;
+    }
+    
+    deletedCount += batch.length;
+    
+    // Show progress for large deletions
+    if (ids.length > chunkSize) {
+      console.log(`  Deleted ${deletedCount}/${ids.length} records from ${table}`);
+    }
+  }
+  
+  return deletedCount;
+}
 
 async function clearFacebookProperties() {
   try {
@@ -30,68 +58,45 @@ async function clearFacebookProperties() {
     console.log(`Found ${propertyIds.length} Facebook properties to delete.`);
 
     // Delete related records first (due to foreign key constraints)
+    // Using chunked deletes to avoid URL/param limits
 
-    // Delete property amenities
-    const { error: amenitiesError } = await supabase
-      .from('property_amenities')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (amenitiesError) {
-      console.error('Error deleting property amenities:', amenitiesError);
-    } else {
+    try {
+      await deleteInChunks('property_amenities', 'property_id', propertyIds);
       console.log('✓ Deleted property amenities');
+    } catch (error) {
+      console.error('Failed to delete property amenities:', error);
     }
 
-    // Delete property images
-    const { error: imagesError } = await supabase
-      .from('property_images')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (imagesError) {
-      console.error('Error deleting property images:', imagesError);
-    } else {
+    try {
+      await deleteInChunks('property_images', 'property_id', propertyIds);
       console.log('✓ Deleted property images');
+    } catch (error) {
+      console.error('Failed to delete property images:', error);
     }
 
-    // Delete property locations
-    const { error: locationsError } = await supabase
-      .from('property_location')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (locationsError) {
-      console.error('Error deleting property locations:', locationsError);
-    } else {
+    try {
+      await deleteInChunks('property_location', 'property_id', propertyIds);
       console.log('✓ Deleted property locations');
+    } catch (error) {
+      console.error('Failed to delete property locations:', error);
     }
 
-    // Delete price history
-    const { error: priceHistoryError } = await supabase
-      .from('price_history')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (priceHistoryError) {
-      console.error('Error deleting price history:', priceHistoryError);
-    } else {
+    try {
+      await deleteInChunks('price_history', 'property_id', propertyIds);
       console.log('✓ Deleted price history');
+    } catch (error) {
+      console.error('Failed to delete price history:', error);
     }
 
-    // Delete scrape metadata
-    const { error: metadataError } = await supabase
-      .from('scrape_metadata')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (metadataError) {
-      console.error('Error deleting scrape metadata:', metadataError);
-    } else {
+    try {
+      await deleteInChunks('scrape_metadata', 'property_id', propertyIds);
       console.log('✓ Deleted scrape metadata');
+    } catch (error) {
+      console.error('Failed to delete scrape metadata:', error);
     }
 
     // Finally, delete the properties themselves
+    // For properties, we can use a simpler query since we're filtering by source_platform
     const { error: propertiesError } = await supabase
       .from('properties')
       .delete()
