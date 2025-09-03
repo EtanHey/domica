@@ -46,6 +46,8 @@ interface Property {
 import { Loader2, Upload } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FacebookSinglePostScraper } from '@/components/facebook-single-post-scraper';
 
 export default function FacebookPocPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -412,38 +414,48 @@ export default function FacebookPocPage() {
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8">
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="text-2xl">ניתוח פוסטים מפייסבוק עם AI</CardTitle>
-          <CardDescription>
-            העתק פוסטים של דירות להשכרה מפייסבוק, והמערכת תנתח אותם באמצעות Claude AI
-          </CardDescription>
-          <Alert className="mt-4">
-            <AlertDescription>
-              <strong>איך זה עובד:</strong> העתק פוסטים מקבוצות פייסבוק (Ctrl+C) והדבק למטה.
-              <br />
-              <strong>Claude AI</strong> ינתח את הטקסט ויחלץ מחיר, מספר חדרים, מיקום ופרטים נוספים.
-            </AlertDescription>
-          </Alert>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex justify-end">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={testMode}
-                onChange={(e) => setTestMode(e.target.checked)}
-                className="rounded"
-              />
-              מצב בדיקה (נתונים לדוגמה)
-            </label>
-          </div>
+      <h1 className="mb-6 text-3xl font-bold">ניתוח פוסטים מפייסבוק עם AI</h1>
 
-          <div className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium">הדבק פוסטים מפייסבוק</label>
-              <Textarea
-                placeholder="הדבק כאן פוסטים של דירות להשכרה מפייסבוק...
+      <Tabs defaultValue="bulk" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="bulk">ניתוח מרובה</TabsTrigger>
+          <TabsTrigger value="single">פוסט בודד</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="bulk">
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-2xl">ניתוח פוסטים מרובים</CardTitle>
+              <CardDescription>
+                העתק פוסטים של דירות להשכרה מפייסבוק, והמערכת תנתח אותם באמצעות Claude AI
+              </CardDescription>
+              <Alert className="mt-4">
+                <AlertDescription>
+                  <strong>איך זה עובד:</strong> העתק פוסטים מקבוצות פייסבוק (Ctrl+C) והדבק למטה.
+                  <br />
+                  <strong>Claude AI</strong> ינתח את הטקסט ויחלץ מחיר, מספר חדרים, מיקום ופרטים
+                  נוספים.
+                </AlertDescription>
+              </Alert>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex justify-end">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={testMode}
+                    onChange={(e) => setTestMode(e.target.checked)}
+                    className="rounded"
+                  />
+                  מצב בדיקה (נתונים לדוגמה)
+                </label>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium">הדבק פוסטים מפייסבוק</label>
+                  <Textarea
+                    placeholder="הדבק כאן פוסטים של דירות להשכרה מפייסבוק...
 
 דוגמה:
 דוגמה לפוסטים מפייסבוק:
@@ -468,71 +480,77 @@ export default function FacebookPocPage() {
 6500 ש״ח
 פנוי מיידי
 רק רציניים 054-9876543"
-                value={rawPosts}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  setRawPosts(e.target.value)
-                }
-                className="min-h-[200px]"
-                dir="rtl"
-              />
-              <Button
-                onClick={testMode ? handleTestMode : handleParsePosts}
-                disabled={isLoading || (!rawPosts.trim() && !testMode)}
-                className="mt-3 w-full"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                    {testMode ? 'טוען נתונים לדוגמה...' : 'מנתח פוסטים עם AI...'}
-                  </>
-                ) : (
-                  <>
-                    <Upload className="ml-2 h-4 w-4" />
-                    {testMode ? 'הצג נתונים לדוגמה' : 'נתח פוסטים עם AI'}
-                  </>
+                    value={rawPosts}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                      setRawPosts(e.target.value)
+                    }
+                    className="min-h-[200px]"
+                    dir="rtl"
+                  />
+                  <Button
+                    onClick={testMode ? handleTestMode : handleParsePosts}
+                    disabled={isLoading || (!rawPosts.trim() && !testMode)}
+                    className="mt-3 w-full"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        {testMode ? 'טוען נתונים לדוגמה...' : 'מנתח פוסטים עם AI...'}
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="ml-2 h-4 w-4" />
+                        {testMode ? 'הצג נתונים לדוגמה' : 'נתח פוסטים עם AI'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
-              </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {parsedProperties.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">נמצאו {parsedProperties.length} דירות</h2>
+                <Button
+                  onClick={handleOpenSelectionModal}
+                  disabled={savedCount > 0}
+                  variant={savedCount > 0 ? 'outline' : 'default'}
+                  className="gap-2"
+                >
+                  {savedCount > 0 ? (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      נשמרו {savedCount} דירות
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      בחר דירות לשמירה
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {parsedProperties.map((property) => (
+                  <PropertyCard key={property.id} property={property} />
+                ))}
+              </div>
             </div>
+          )}
+        </TabsContent>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {parsedProperties.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">נמצאו {parsedProperties.length} דירות</h2>
-            <Button
-              onClick={handleOpenSelectionModal}
-              disabled={savedCount > 0}
-              variant={savedCount > 0 ? 'outline' : 'default'}
-              className="gap-2"
-            >
-              {savedCount > 0 ? (
-                <>
-                  <CheckCircle className="h-4 w-4" />
-                  נשמרו {savedCount} דירות
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  בחר דירות לשמירה
-                </>
-              )}
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {parsedProperties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
-            ))}
-          </div>
-        </div>
-      )}
+        <TabsContent value="single">
+          <FacebookSinglePostScraper />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={showSelectionModal} onOpenChange={setShowSelectionModal}>
         <DialogContent className="max-h-[80vh] max-w-4xl">

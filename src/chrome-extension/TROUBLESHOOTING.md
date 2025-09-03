@@ -26,11 +26,13 @@
 5. **Manual Test:**
    - Open Chrome DevTools Console on the Facebook page
    - Paste this code and press Enter:
+
    ```javascript
    console.log('Test: Looking for posts...');
    const articles = document.querySelectorAll('[role="article"]');
    console.log(`Found ${articles.length} articles`);
    ```
+
    - If this shows 0 articles, Facebook might have changed their structure
 
 6. **Force Refresh:**
@@ -48,8 +50,11 @@
 - **Facebook structure changes:** Added multiple fallback methods to find posts
 
 ## Debug Mode:
+
 If still having issues, open Chrome DevTools and run:
+
 ```javascript
 localStorage.setItem('domica_debug', 'true');
 ```
+
 Then reload the page for more verbose logging.

@@ -1,15 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
+// Initialize Supabase client - use anon key for now since service role key is not available
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: false
+    },
+    global: {
+      fetch: (...args) => {
+        // Add timeout to fetch requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        
+        return fetch(args[0], {
+          ...args[1],
+          signal: controller.signal
+        }).finally(() => clearTimeout(timeoutId));
+      }
+    }
+  }
 );
+
+// Helper function to wait for database to be ready
+async function waitForDatabase(maxRetries = 3, delayMs = 2000) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const { error } = await supabase.from('properties').select('id').limit(1);
+      if (!error) {
+        return true; // Database is ready
+      }
+      console.log(`Database connection attempt ${i + 1} failed:`, error.message);
+      
+      // Check if database is paused/inactive
+      if (error.message?.includes('fetch failed') || error.code === 'PGRST000') {
+        console.log(`Waiting ${delayMs}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      } else {
+        // For other errors, don't retry
+        throw error;
+      }
+    } catch (err) {
+      if (i === maxRetries - 1) {
+        throw err;
+      }
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { properties: propertiesToSave } = await request.json();
+    
+    // Test and wait for database connection
+    try {
+      const isReady = await waitForDatabase();
+      if (!isReady) {
+        return NextResponse.json(
+          { 
+            error: 'Database is not available. It may be paused or inactive.', 
+            hint: 'Please check if the Supabase project is active and try again in a few moments.'
+          }, 
+          { status: 503 }
+        );
+      }
+    } catch (connectionError: any) {
+      console.error('Supabase connection failed after retries:', connectionError);
+      return NextResponse.json(
+        { 
+          error: 'Unable to connect to database', 
+          details: connectionError.message,
+          hint: 'The database may be paused. Please ensure the Supabase project is active.'
+        }, 
+        { status: 503 }
+      );
+    }
 
     if (!propertiesToSave || !Array.isArray(propertiesToSave)) {
       return NextResponse.json({ error: 'Invalid properties data' }, { status: 400 });
@@ -24,7 +93,7 @@ export async function POST(request: NextRequest) {
         // Check for duplicates before saving
         const pricePerMonth = parseFloat(property.pricePerMonth) || 0;
         const phoneNormalized = property.contactPhone?.replace(/\D/g, '') || null;
-        
+
         // Build duplicate check query
         let duplicateQuery = supabase
           .from('properties')
@@ -33,38 +102,38 @@ export async function POST(request: NextRequest) {
           .eq('bedrooms', property.bedrooms || null)
           .eq('source_platform', 'facebook')
           .eq('is_active', true);
-          
+
         // Add phone check if available
         if (phoneNormalized) {
           duplicateQuery = duplicateQuery.eq('phone_normalized', phoneNormalized);
         }
-        
+
         const { data: existingProperties, error: duplicateCheckError } = await duplicateQuery;
-        
+
         if (duplicateCheckError) {
           console.error('Duplicate check error:', duplicateCheckError);
         } else if (existingProperties && existingProperties.length > 0) {
           // Check location similarity for potential duplicates
           if (property.locationText) {
             const [newCity] = property.locationText.split(',').map((s: string) => s.trim());
-            
+
             // Get locations for existing properties
-            const propertyIds = existingProperties.map(p => p.id);
+            const propertyIds = existingProperties.map((p) => p.id);
             const { data: locations } = await supabase
               .from('property_location')
               .select('property_id, city, neighborhood')
               .in('property_id', propertyIds);
-              
+
             // Check if any have matching city
-            const isDuplicate = locations?.some(loc => 
-              loc.city?.toLowerCase() === newCity?.toLowerCase()
+            const isDuplicate = locations?.some(
+              (loc) => loc.city?.toLowerCase() === newCity?.toLowerCase()
             );
-            
+
             if (isDuplicate) {
               duplicates.push({
                 property: property.title,
                 reason: 'דירה דומה כבר קיימת במערכת',
-                existing: existingProperties[0].title
+                existing: existingProperties[0].title,
               });
               continue; // Skip this property
             }

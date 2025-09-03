@@ -24,7 +24,9 @@ export class DuplicateDetectionService {
     this.options = options;
   }
 
-  async checkForDuplicate(property: PropertyToCheck): Promise<{ isDuplicate: boolean; matchedProperty?: any }> {
+  async checkForDuplicate(
+    property: PropertyToCheck
+  ): Promise<{ isDuplicate: boolean; matchedProperty?: any }> {
     try {
       // 1. First check for exact sourceId match (most reliable for Facebook posts)
       if (property.sourceId && property.sourcePlatform) {
@@ -57,22 +59,32 @@ export class DuplicateDetectionService {
             // Check if created recently (within last hour)
             const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
             if (similarProperty.created_at && similarProperty.created_at > oneHourAgo) {
-              
               // Second level check: Compare more details to ensure it's truly a duplicate
-              const descriptionMatch = this.compareDescriptions(property.description, similarProperty.description);
-              const locationMatch = property.locationText === similarProperty.location_text || 
-                                   (!property.locationText && !similarProperty.location_text);
-              const bedroomsMatch = property.bedrooms === similarProperty.bedrooms || 
-                                   (!property.bedrooms && !similarProperty.bedrooms);
-              
+              const descriptionMatch = this.compareDescriptions(
+                property.description,
+                similarProperty.description
+              );
+              const locationMatch =
+                property.locationText === similarProperty.location_text ||
+                (!property.locationText && !similarProperty.location_text);
+              const bedroomsMatch =
+                property.bedrooms === similarProperty.bedrooms ||
+                (!property.bedrooms && !similarProperty.bedrooms);
+
               // Consider it a duplicate only if at least 2 of these match
-              const matchCount = [descriptionMatch, locationMatch, bedroomsMatch].filter(Boolean).length;
-              
+              const matchCount = [descriptionMatch, locationMatch, bedroomsMatch].filter(
+                Boolean
+              ).length;
+
               if (matchCount >= 2) {
-                console.log(`Found similar duplicate by title+price with ${matchCount}/3 additional matches: ${property.title}`);
+                console.log(
+                  `Found similar duplicate by title+price with ${matchCount}/3 additional matches: ${property.title}`
+                );
                 return { isDuplicate: true, matchedProperty: similarProperty };
               } else {
-                console.log(`Similar property found but only ${matchCount}/3 additional fields match - not a duplicate`);
+                console.log(
+                  `Similar property found but only ${matchCount}/3 additional fields match - not a duplicate`
+                );
               }
             }
           }
@@ -81,7 +93,6 @@ export class DuplicateDetectionService {
 
       // 3. No duplicates found
       return { isDuplicate: false };
-      
     } catch (error) {
       console.error('Error checking for duplicates:', error);
       // On error, return false to allow insertion
@@ -92,24 +103,30 @@ export class DuplicateDetectionService {
   // Helper method to compare descriptions (check if they're similar enough)
   private compareDescriptions(desc1?: string, desc2?: string): boolean {
     if (!desc1 || !desc2) return false;
-    
-    // Remove whitespace and punctuation for comparison
-    const normalize = (text: string) => text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
-    
+
+    // Remove punctuation and normalize whitespace for comparison
+    // Use Unicode property classes to preserve Hebrew letters
+    const normalize = (text: string) =>
+      text
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
     const normalized1 = normalize(desc1);
     const normalized2 = normalize(desc2);
-    
+
     // Check if they're very similar (at least 80% of the shorter one is contained in the longer one)
     const shorter = normalized1.length < normalized2.length ? normalized1 : normalized2;
     const longer = normalized1.length >= normalized2.length ? normalized1 : normalized2;
-    
+
     // Simple substring check - could be enhanced with fuzzy matching
     const words1 = shorter.split(' ');
     const words2 = longer.split(' ');
-    
-    const matchingWords = words1.filter(word => words2.includes(word)).length;
+
+    const matchingWords = words1.filter((word) => words2.includes(word)).length;
     const similarity = matchingWords / words1.length;
-    
+
     return similarity > 0.7; // 70% word similarity threshold
   }
 }

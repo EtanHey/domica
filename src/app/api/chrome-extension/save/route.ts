@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { DuplicateDetectionService } from '@/lib/duplicate-detection';
+import { createHash } from 'crypto';
 
 // Initialize Anthropic client with proper validation
 const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -280,7 +281,7 @@ function extractAmenitiesFromText(text: string): string[] {
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     console.log('Chrome extension save API called');
     const body = await request.json();
@@ -408,18 +409,20 @@ export async function POST(request: NextRequest) {
             // Always use extracted phone from scraper
             extractedData.contactPhone = post.phones?.[0] || extractPhoneFromText(post.text);
 
-            // Generate unique ID based on post content for duplicate detection
-            // Use combination of author, price, rooms, and location for consistency
-            // If price is missing, use a combination of other extracted fields
-            let uniqueId: string;
-            if (extractedData.price) {
-              // If we have price, use it with rooms for consistency
-              uniqueId = `fb-${post.author?.replace(/\s+/g, '-')}-${extractedData.price}-${extractedData.rooms || 0}`.toLowerCase();
-            } else {
-              // If no price, use combination of author, rooms, city, and street/neighborhood
-              const location = extractedData.street || extractedData.neighborhood || extractedData.city || 'unknown';
-              uniqueId = `fb-${post.author?.replace(/\s+/g, '-')}-${extractedData.rooms || 0}-${location.replace(/\s+/g, '-')}`.toLowerCase();
-            }
+            // Generate unique ID using hash to avoid collisions
+            // Use postUrl if available, otherwise create a composite key from content
+            const authorSlug = (post.author || 'unknown').toLowerCase().replace(/\s+/g, '-');
+            const locationSlug = (extractedData.street || extractedData.neighborhood || extractedData.city || 'unknown')
+              .toLowerCase()
+              .replace(/\s+/g, '-');
+            
+            // Create a stable source key from available data
+            const sourceKey = post.postUrl || 
+              `${authorSlug}|${locationSlug}|${extractedData.price || 0}|${extractedData.rooms || 0}|${(post.text || '').slice(0, 200)}`;
+            
+            // Generate a short hash for the ID
+            const hash = createHash('sha1').update(sourceKey).digest('hex').slice(0, 12);
+            const uniqueId = `fb-${hash}`;
 
             // Create property object
             const property: any = {
@@ -467,7 +470,7 @@ export async function POST(request: NextRequest) {
       const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
       const totalBatches = Math.ceil(posts.length / BATCH_SIZE);
       const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
-      
+
       console.log(
         `⏱️ [${elapsedSeconds}s] Processing batch ${batchNumber}/${totalBatches} (posts ${i + 1}-${Math.min(i + BATCH_SIZE, posts.length)})`
       );
@@ -501,7 +504,7 @@ export async function POST(request: NextRequest) {
         const duplicateService = new DuplicateDetectionService(supabase as any, {
           enableAIComparison: false, // Skip AI for speed in extension
         });
-        
+
         let duplicateResult;
         try {
           duplicateResult = await duplicateService.checkForDuplicate({
@@ -541,7 +544,7 @@ export async function POST(request: NextRequest) {
             console.error('Failed to update duplicate property:', updateError);
             skippedDuplicates.push({
               title: property.title,
-              reason: 'Update failed'
+              reason: 'Update failed',
             });
             continue;
           }
@@ -673,7 +676,7 @@ export async function POST(request: NextRequest) {
         errors.push({
           property: property.title,
           error: error.message || 'Unknown error',
-          details: error.toString()
+          details: error.toString(),
         });
       }
     }
@@ -705,7 +708,7 @@ export async function POST(request: NextRequest) {
       skipped: response.skipped,
       total: response.total,
       hasErrors: errors.length > 0,
-      processingTime: `${totalTime}s`
+      processingTime: `${totalTime}s`,
     });
 
     return NextResponse.json(response);

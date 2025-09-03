@@ -17,13 +17,20 @@ const svgToPng = async (svgString, size) => {
   // This creates a simple bitmap representation
   // For actual PNG conversion, you'd need a proper library
   // For now, we'll create placeholder files
-  
+
   // Create a simple PNG header (this is a placeholder - won't create actual image)
   const png = Buffer.from([
-    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a, // PNG signature
     // ... rest would be actual PNG data
   ]);
-  
+
   return png;
 };
 
@@ -210,7 +217,7 @@ const createHtmlGenerator = () => {
   </script>
 </body>
 </html>`;
-  
+
   return html;
 };
 

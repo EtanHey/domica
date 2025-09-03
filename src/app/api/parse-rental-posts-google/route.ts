@@ -21,11 +21,11 @@ export async function POST(request: NextRequest) {
 
     // Process all documents with Google Document AI
     const extractedTexts: string[] = [];
-    
+
     for (const doc of documents) {
       try {
         let mimeType = 'application/pdf';
-        
+
         // Detect mime type from data URL
         if (doc.startsWith('data:')) {
           const match = doc.match(/^data:(.+?);/);
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
             mimeType = match[1];
           }
         }
-        
+
         // Process with Google Document AI
         const text = await processImageOrPdf(doc, mimeType);
         extractedTexts.push(text);

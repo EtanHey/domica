@@ -8,11 +8,11 @@ const path = require('path');
 function createIcon(size) {
   const canvas = createCanvas(size, size);
   const ctx = canvas.getContext('2d');
-  
+
   // Background - Domica blue
   ctx.fillStyle = '#1e40af';
   ctx.fillRect(0, 0, size, size);
-  
+
   // Create rounded corners
   ctx.globalCompositeOperation = 'destination-in';
   ctx.beginPath();
@@ -27,24 +27,24 @@ function createIcon(size) {
   ctx.lineTo(0, radius);
   ctx.quadraticCurveTo(0, 0, radius, 0);
   ctx.fill();
-  
+
   // Reset composite operation
   ctx.globalCompositeOperation = 'source-over';
-  
+
   // Draw "D" letter
   ctx.fillStyle = 'white';
   ctx.font = `bold ${size * 0.6}px Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('D', size / 2, size / 2);
-  
+
   return canvas.toBuffer('image/png');
 }
 
 // Create all icon sizes
 const sizes = [16, 48, 128];
 
-sizes.forEach(size => {
+sizes.forEach((size) => {
   const buffer = createIcon(size);
   const filename = `icon${size}.png`;
   fs.writeFileSync(path.join(__dirname, filename), buffer);

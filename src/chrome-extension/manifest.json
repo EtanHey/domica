@@ -3,12 +3,7 @@
   "name": "Domica Facebook Scraper",
   "version": "1.0",
   "description": "Extract rental posts from Facebook groups",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "scripting",
-    "tabs"
-  ],
+  "permissions": ["activeTab", "storage", "scripting", "tabs"],
   "host_permissions": [
     "https://www.facebook.com/*",
     "https://facebook.com/*",
