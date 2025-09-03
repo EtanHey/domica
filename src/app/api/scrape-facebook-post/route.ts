@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@supabase/supabase-js';
 import FirecrawlApp from '@mendable/firecrawl-js';
 import { Yad2ScraperFirecrawl } from '@/lib/scrapers/yad2-scraper-firecrawl';
-import { Browserbase } from 'browserbase';
+import Browserbase from '@browserbasehq/sdk';
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Supabase client - keeping for future use
+// const supabase = createClient(
+//   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+//   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// );
 
 const firecrawl = process.env.FIRECRAWL_API_KEY
   ? new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY })
@@ -556,7 +556,7 @@ ${text}
           apiKey: process.env.BROWSERBASE_API_KEY,
         });
         
-        const session = await bb.createSession({
+        const session = await bb.sessions.create({
           projectId: process.env.BROWSERBASE_PROJECT_ID,
         });
         

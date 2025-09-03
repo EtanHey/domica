@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
+    "@browserbasehq/sdk": "^2.6.0",
     "@google-cloud/documentai": "^9.3.0",
     "@mendable/firecrawl-js": "^1.29.1",
     "@playwright/test": "^1.53.2",
@@ -30,7 +31,6 @@
     "@supabase/supabase-js": "^2.50.3",
     "@tanstack/react-query": "^5.81.5",
     "@uploadthing/react": "^7.3.2",
-    "browserbase": "^3.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.44.2",
