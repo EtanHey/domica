@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import FirecrawlApp from '@mendable/firecrawl-js';
 import { Yad2ScraperFirecrawl } from '@/lib/scrapers/yad2-scraper-firecrawl';
+import { Browserbase } from 'browserbase';
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
@@ -542,30 +543,52 @@ ${text}
       }
     }
 
-    // If Firecrawl didn't work, try Playwright
+    // Try Browserbase for production or regular Playwright for development
     let browser = null;
+    let page = null;
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+    
     try {
-      // Check if we have Playwright available
-      const playwright = await import('playwright').catch(() => null);
-
-      if (playwright) {
-        console.log('Using Playwright for scraping...');
-        // Only use --no-sandbox in development for better security
-        const args = process.env.NODE_ENV === 'development' 
-          ? ['--no-sandbox', '--disable-setuid-sandbox']
-          : ['--disable-dev-shm-usage']; // Safer option for production
-        
-        browser = await playwright.chromium.launch({
-          headless: true,
-          args,
+      if (isProduction && process.env.BROWSERBASE_API_KEY && process.env.BROWSERBASE_PROJECT_ID) {
+        // Use Browserbase in production
+        console.log('Using Browserbase for scraping...');
+        const bb = new Browserbase({
+          apiKey: process.env.BROWSERBASE_API_KEY,
         });
         
-        try {
+        const session = await bb.createSession({
+          projectId: process.env.BROWSERBASE_PROJECT_ID,
+        });
+        
+        const playwright = await import('playwright-core');
+        browser = await playwright.chromium.connectOverCDP(session.connectUrl);
+        const context = browser.contexts()[0];
+        page = context.pages()[0];
+      } else {
+        // Use local Playwright in development
+        const playwright = await import('playwright').catch(() => null);
+        
+        if (playwright) {
+          console.log('Using local Playwright for scraping...');
+          const args = process.env.NODE_ENV === 'development' 
+            ? ['--no-sandbox', '--disable-setuid-sandbox']
+            : ['--disable-dev-shm-usage'];
+          
+          browser = await playwright.chromium.launch({
+            headless: true,
+            args,
+          });
+        
           const context = await browser.newContext({
             userAgent:
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           });
-          const page = await context.newPage();
+          page = await context.newPage();
+        }
+      }
+      
+      if (page) {
+        try {
 
           // Navigate to the URL
           await page.goto(url, { waitUntil: 'networkidle' });
@@ -665,11 +688,11 @@ ${text}
           }
         }
         } catch (innerError) {
-          console.error('Playwright extraction error:', innerError);
+          console.error('Page extraction error:', innerError);
         }
       }
     } catch (error) {
-      console.error('Playwright error:', error);
+      console.error('Browser automation error:', error);
     } finally {
       // Ensure browser is always closed to prevent resource leaks
       if (browser) {
