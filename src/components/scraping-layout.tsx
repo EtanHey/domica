@@ -3,7 +3,7 @@
 import { ReactNode, useState } from 'react';
 import { PropertyGrid } from '@/components/property-grid';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Home, Key, Tag, AlertCircle, ArrowRight, ChevronDown, Facebook } from 'lucide-react';
+import { Home, Key, Tag, AlertCircle, ArrowRight, ChevronDown, Facebook, Building } from 'lucide-react';
 import { ListingType, ListingTypeValue } from '@/types/listing';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 interface ScrapingLayoutProps {
   title: string;
   description: string;
-  sourcePlatform: 'yad2' | 'facebook';
+  sourcePlatform: 'yad2' | 'facebook' | 'madlan';
   showScraperComponent?: boolean;
   scraperComponent?: ReactNode;
   actionButton?: ReactNode;
@@ -53,6 +53,8 @@ export function ScrapingLayout({
         return 'נכסים מיד2';
       case 'facebook':
         return 'נכסים שנשמרו מפייסבוק';
+      case 'madlan':
+        return 'נכסים ממדלן';
       default:
         return 'נכסים';
     }
@@ -77,10 +79,15 @@ export function ScrapingLayout({
                     <Home className="h-4 w-4" />
                     יד2
                   </>
-                ) : (
+                ) : sourcePlatform === 'facebook' ? (
                   <>
                     <Facebook className="h-4 w-4" />
                     פייסבוק
+                  </>
+                ) : (
+                  <>
+                    <Building className="h-4 w-4" />
+                    מדלן
                   </>
                 )}
                 <ChevronDown className="h-4 w-4" />
@@ -102,6 +109,14 @@ export function ScrapingLayout({
               >
                 <Facebook className="h-4 w-4" />
                 פייסבוק
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer gap-2"
+                onClick={() => router.push('/scraping-poc/madlan')}
+                disabled={sourcePlatform === 'madlan'}
+              >
+                <Building className="h-4 w-4" />
+                מדלן
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

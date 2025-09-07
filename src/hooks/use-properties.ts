@@ -13,7 +13,7 @@ interface PropertyFilters {
   limit?: number;
   listingType?: 'rent' | 'sale';
   duplicateStatus?: 'review' | 'unique' | 'duplicate';
-  sourcePlatform?: 'yad2' | 'facebook';
+  sourcePlatform?: 'yad2' | 'facebook' | 'madlan';
 }
 
 // Fetch all properties with optional filters and pagination

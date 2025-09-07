@@ -57,6 +57,13 @@ export function HeaderNav() {
             <Facebook className="h-4 w-4" />
             פייסבוק
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer gap-2"
+            onClick={() => router.push('/scraping-poc/madlan')}
+          >
+            <Home className="h-4 w-4" />
+            מדלן
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </nav>

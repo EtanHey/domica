@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { HouseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 
@@ -17,45 +17,45 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageLoadStatus, setImageLoadStatus] = useState<Record<number, boolean>>({});
 
-  // Sort images by order
-  const sortedImages = images?.sort((a, b) => (a.image_order || 0) - (b.image_order || 0)) || [];
+  // Memoize the processed images to prevent infinite re-renders
+  const allImages = useMemo(() => {
+    // Sort images by order
+    const sortedImages = images?.slice().sort((a, b) => (a.image_order || 0) - (b.image_order || 0)) || [];
 
-  // Filter out invalid image URLs and prioritize UploadThing URLs
-  const validImages = sortedImages.filter((img) => {
-    return (
-      img?.image_url &&
-      typeof img.image_url === 'string' &&
-      !img.image_url.startsWith('data:') &&
-      (img.image_url.includes('utfs.io') ||
-        img.image_url.includes('uploadthing.') ||
-        img.image_url.includes('ufs.sh') ||
-        (img.image_url.startsWith('http') &&
-          !img.image_url.includes('yad2.co.il') &&
-          !img.image_url.includes('img.yad2')) ||
-        img.image_url.startsWith('/'))
-    );
-  });
+    // Filter out invalid image URLs and prioritize UploadThing URLs
+    const validImages = sortedImages.filter((img) => {
+      return (
+        img?.image_url &&
+        typeof img.image_url === 'string' &&
+        !img.image_url.startsWith('data:') &&
+        (img.image_url.includes('utfs.io') ||
+          img.image_url.includes('uploadthing.') ||
+          img.image_url.includes('ufs.sh') ||
+          (img.image_url.startsWith('http') &&
+            !img.image_url.includes('yad2.co.il') &&
+            !img.image_url.includes('img.yad2')) ||
+          img.image_url.startsWith('/'))
+      );
+    });
 
-  const primaryImage = validImages.find((img) => img.is_primary) || validImages[0];
-  const allImages = primaryImage
-    ? [primaryImage, ...validImages.filter((img) => !img.is_primary)]
-    : validImages;
+    const primaryImage = validImages.find((img) => img.is_primary) || validImages[0];
+    return primaryImage
+      ? [primaryImage, ...validImages.filter((img) => !img.is_primary)]
+      : validImages;
+  }, [images]);
 
-  console.log('Final processed images:', {
-    allImages,
-    allImageUrls: allImages.map((img) => img.image_url),
-  });
+  // Debug logging removed to prevent console spam
 
   // Track image load status without manual preloading
   // Next.js Image component handles preloading efficiently with priority and loading props
   useEffect(() => {
     // Initialize load status tracking for all images
     const initialStatus: Record<number, boolean> = {};
-    allImages.forEach((_, index) => {
-      initialStatus[index] = false;
-    });
+    for (let i = 0; i < allImages.length; i++) {
+      initialStatus[i] = false;
+    }
     setImageLoadStatus(initialStatus);
-  }, [allImages]);
+  }, [allImages.length]); // Only depend on length, not the array itself
 
   if (allImages.length === 0) {
     return (
@@ -104,7 +104,6 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 onLoad={() => {
                   setImageLoadStatus((prev) => ({ ...prev, [index]: true }));
-                  console.log(`✅ Main carousel image ${index + 1} loaded:`, image?.image_url);
                 }}
                 onError={() => {
                   console.error(`❌ Main carousel image ${index + 1} failed:`, image?.image_url);
@@ -178,9 +177,6 @@ export function PropertyImageCarousel({ images, title }: PropertyImageCarouselPr
                 className="object-cover"
                 loading="lazy"
                 sizes="(max-width: 768px) 25vw, (max-width: 1200px) 16vw, 12vw"
-                onLoad={() => {
-                  console.log(`✅ Thumbnail ${index + 1} loaded:`, image?.image_url);
-                }}
                 onError={() => {
                   console.error(`❌ Thumbnail ${index + 1} failed:`, image?.image_url);
                 }}

@@ -23,7 +23,7 @@ import { ListingType, ListingTypeValue } from '@/types/listing';
 interface PropertyGridProps {
   listingType?: ListingTypeValue;
   initialPage?: number;
-  sourcePlatform?: 'yad2' | 'facebook';
+  sourcePlatform?: 'yad2' | 'facebook' | 'madlan';
 }
 
 export function PropertyGrid({

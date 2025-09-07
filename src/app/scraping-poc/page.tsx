@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Home, Facebook, ChevronDown } from 'lucide-react';
+import { Home, Facebook, Building2, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +42,13 @@ export default function ScrapingPocPage() {
             >
               <Facebook className="h-4 w-4" />
               פייסבוק
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer gap-2"
+              onClick={() => router.push('/scraping-poc/madlan')}
+            >
+              <Building2 className="h-4 w-4" />
+              מדלן
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

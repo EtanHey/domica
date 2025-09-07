@@ -71,6 +71,16 @@ const nextConfig: NextConfig = {
         hostname: 'img.yad2.co.il',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images2.madlan.co.il',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.madlan.co.il',
+        pathname: '/**',
+      },
     ],
   },
 };
