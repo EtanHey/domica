@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
           const batch = propertiesToScrape.slice(batchStart, Math.min(batchStart + BATCH_SIZE, propertiesToScrape.length));
           console.log(`Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1}/${Math.ceil(propertiesToScrape.length / BATCH_SIZE)} (${batch.length} properties)`);
           
-          const batchPromises = batch.map(async (propUrlData, batchIndex) => {
+          const batchPromises = batch.map(async (propUrlData: { url: string; title?: string; price?: string }, batchIndex: number) => {
             const globalIndex = batchStart + batchIndex;
             const propUrl = propUrlData.url;
             
