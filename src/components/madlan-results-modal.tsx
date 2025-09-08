@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -101,6 +101,8 @@ export function MadlanResultsModal({
 }: MadlanResultsModalProps) {
   const [activeTab, setActiveTab] = useState('results');
   const [selectedListing, setSelectedListing] = useState<MadlanListing | null>(null);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   const getAmenityIcon = (amenity: string) => {
     const iconMap: Record<string, React.ReactNode> = {
@@ -142,9 +144,46 @@ export function MadlanResultsModal({
 
   const bestDeal = getBestDeal();
 
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const tabs = ['results', 'insights', 'best'];
+      const currentIndex = tabs.indexOf(activeTab);
+      
+      if (e.key === 'ArrowLeft') {
+        const newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+        setActiveTab(tabs[newIndex]);
+      } else {
+        const newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
+        setActiveTab(tabs[newIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onOpenChange(false);
+    }
+  };
+
+  // Focus management for accessibility
+  useEffect(() => {
+    if (open && !isLoading && listings.length > 0) {
+      // Focus the tabs when modal opens with results
+      setTimeout(() => {
+        tabsRef.current?.focus();
+      }, 100);
+    }
+  }, [open, isLoading, listings.length]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
+      <DialogContent 
+        className="max-w-6xl h-[90vh] flex flex-col p-0"
+        aria-describedby="modal-description"
+        onOpenAutoFocus={(e) => {
+          // Prevent auto-focus on modal open, we'll handle it manually
+          e.preventDefault();
+        }}
+      >
         {/* Header */}
         <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20">
           <div className="flex items-center justify-between">
@@ -157,15 +196,18 @@ export function MadlanResultsModal({
                 <DialogTitle className="text-xl font-bold flex items-center gap-2">
                   תוצאות מדלן
                   {listings.length > 0 && (
-                    <Badge className="bg-green-100 text-green-800 border-green-200">
+                    <Badge 
+                      className="bg-green-100 text-green-800 border-green-200"
+                      aria-label={`נמצאו ${listings.length} נכסים`}
+                    >
                       {listings.length} נכסים
                     </Badge>
                   )}
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription id="modal-description">
                   {isLoading ? (
                     <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                       סורק נכסים...
                     </div>
                   ) : (
@@ -178,37 +220,56 @@ export function MadlanResultsModal({
             {!isLoading && listings.length > 0 && (
               <div className="flex items-center gap-2">
                 <Button
+                  ref={saveButtonRef}
                   onClick={onSave}
                   disabled={isSaving}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
+                  className={`gap-2 transition-all duration-300 ${
+                    isSaving 
+                      ? 'bg-blue-600 hover:bg-blue-700 shadow-lg animate-pulse' 
+                      : saveStatus?.success 
+                        ? 'bg-emerald-600 hover:bg-emerald-700 shadow-lg' 
+                        : 'bg-green-600 hover:bg-green-700'
+                  }`}
                   size="sm"
+                  aria-describedby="save-button-description"
                 >
                   {isSaving ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      שומר...
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      שומר נתונים...
+                    </>
+                  ) : saveStatus?.success ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 animate-bounce" aria-hidden="true" />
+                      נשמר! ✓
                     </>
                   ) : (
                     <>
-                      <Save className="h-4 w-4" />
+                      <Save className="h-4 w-4" aria-hidden="true" />
                       שמור הכל
                     </>
                   )}
                 </Button>
+                <span id="save-button-description" className="sr-only">
+                  שמור את כל {listings.length} הנכסים למסד הנתונים
+                </span>
               </div>
             )}
           </div>
 
           {/* Progress Bar for Loading */}
           {isLoading && scrapingStats && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-2" role="status" aria-live="polite">
               <div className="flex justify-between text-sm">
                 <span>מעבד נכסים...</span>
-                <span>{scrapingStats.processed}/{scrapingStats.totalFound}</span>
+                <span aria-label={`מעבד ${scrapingStats.processed} מתוך ${scrapingStats.totalFound} נכסים`}>
+                  {scrapingStats.processed}/{scrapingStats.totalFound}
+                </span>
               </div>
               <Progress 
                 value={(scrapingStats.processed / scrapingStats.totalFound) * 100} 
                 className="h-2"
+                aria-label={`התקדמות: ${Math.round((scrapingStats.processed / scrapingStats.totalFound) * 100)} אחוז`}
               />
             </div>
           )}
@@ -218,11 +279,13 @@ export function MadlanResultsModal({
             <Alert 
               variant={saveStatus.success ? 'default' : 'destructive'} 
               className="mt-3"
+              role="status"
+              aria-live="assertive"
             >
               {saveStatus.success ? (
-                <CheckCircle className="h-4 w-4" />
+                <CheckCircle className="h-4 w-4" aria-hidden="true" />
               ) : (
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
               )}
               <AlertTitle>
                 {saveStatus.success ? 'נשמר בהצלחה!' : 'שגיאה בשמירה'}
@@ -249,47 +312,81 @@ export function MadlanResultsModal({
         {/* Content */}
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full" role="status" aria-live="polite">
               <div className="text-center space-y-4">
                 <div className="relative">
-                  <Loader2 className="h-12 w-12 animate-spin text-green-600 mx-auto" />
-                  <div className="absolute inset-0 rounded-full border-2 border-green-200 animate-pulse" />
+                  <Loader2 className="h-12 w-12 animate-spin text-green-600 mx-auto" aria-hidden="true" />
+                  <div className="absolute inset-0 rounded-full border-2 border-green-200 animate-pulse" aria-hidden="true" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">מחפש נכסים מעולים...</h3>
+                  <h2 className="text-lg font-semibold">מחפש נכסים מעולים...</h2>
                   <p className="text-muted-foreground">אנא המתן, זה לוקח רק כמה שניות</p>
                 </div>
               </div>
             </div>
           ) : listings.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full" role="status">
               <div className="text-center space-y-4">
-                <Home className="h-16 w-16 text-gray-400 mx-auto" />
+                <Home className="h-16 w-16 text-gray-400 mx-auto" aria-hidden="true" />
                 <div>
-                  <h3 className="text-lg font-semibold">לא נמצאו נכסים</h3>
+                  <h2 className="text-lg font-semibold">לא נמצאו נכסים</h2>
                   <p className="text-muted-foreground">נסה לשנות את החיפוש או לנסות אזור אחר</p>
                 </div>
               </div>
             </div>
           ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-              <TabsList className="grid w-full grid-cols-3 mx-4 mt-4">
-                <TabsTrigger value="results" className="gap-2">
-                  <Eye className="h-4 w-4" />
+            <Tabs 
+              value={activeTab} 
+              onValueChange={setActiveTab} 
+              className="flex flex-col h-full"
+              onKeyDown={handleKeyDown}
+            >
+              <TabsList 
+                ref={tabsRef}
+                className="grid w-full grid-cols-3 mx-4 mt-4"
+                role="tablist"
+                aria-label="תוצאות חיפוש נכסים"
+              >
+                <TabsTrigger 
+                  value="results" 
+                  className="gap-2"
+                  role="tab"
+                  aria-selected={activeTab === 'results'}
+                  aria-controls="results-panel"
+                >
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                   נכסים ({listings.length})
                 </TabsTrigger>
-                <TabsTrigger value="insights" className="gap-2">
-                  <BarChart3 className="h-4 w-4" />
+                <TabsTrigger 
+                  value="insights" 
+                  className="gap-2"
+                  role="tab"
+                  aria-selected={activeTab === 'insights'}
+                  aria-controls="insights-panel"
+                >
+                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
                   סטטיסטיקות
                 </TabsTrigger>
-                <TabsTrigger value="best" className="gap-2">
-                  <Trophy className="h-4 w-4" />
+                <TabsTrigger 
+                  value="best" 
+                  className="gap-2"
+                  role="tab"
+                  aria-selected={activeTab === 'best'}
+                  aria-controls="best-panel"
+                >
+                  <Trophy className="h-4 w-4" aria-hidden="true" />
                   המיטב
                 </TabsTrigger>
               </TabsList>
 
               <div className="flex-1 overflow-hidden px-4 pb-4">
-                <TabsContent value="results" className="h-full mt-4">
+                <TabsContent 
+                  value="results" 
+                  className="h-full mt-4"
+                  role="tabpanel"
+                  id="results-panel"
+                  aria-labelledby="results-tab"
+                >
                   <ScrollArea className="h-full">
                     <div className="space-y-4 pr-4">
                       {listings.map((listing, index) => (
@@ -391,7 +488,13 @@ export function MadlanResultsModal({
                   </ScrollArea>
                 </TabsContent>
 
-                <TabsContent value="insights" className="h-full mt-4">
+                <TabsContent 
+                  value="insights" 
+                  className="h-full mt-4"
+                  role="tabpanel"
+                  id="insights-panel"
+                  aria-labelledby="insights-tab"
+                >
                   <ScrollArea className="h-full">
                     <div className="space-y-6 pr-4">
                       {/* Key Stats */}
@@ -492,7 +595,13 @@ export function MadlanResultsModal({
                   </ScrollArea>
                 </TabsContent>
 
-                <TabsContent value="best" className="h-full mt-4">
+                <TabsContent 
+                  value="best" 
+                  className="h-full mt-4"
+                  role="tabpanel"
+                  id="best-panel"
+                  aria-labelledby="best-tab"
+                >
                   <ScrollArea className="h-full">
                     <div className="space-y-6 pr-4">
                       {bestDeal && (

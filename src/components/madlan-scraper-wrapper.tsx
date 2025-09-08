@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 import { MadlanResultsModal } from './madlan-results-modal';
 import { 
   Search, 
@@ -21,7 +22,9 @@ import {
   TrendingUp,
   Target,
   Rocket,
-  Play
+  Play,
+  PartyPopper,
+  Heart
 } from 'lucide-react';
 
 interface MadlanListing {
@@ -65,6 +68,7 @@ interface ScrapingProgress {
 }
 
 export function MadlanScraperWrapper() {
+  const { toast } = useToast();
   const [searchUrl, setSearchUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [listings, setListings] = useState<MadlanListing[]>([]);
@@ -75,6 +79,7 @@ export function MadlanScraperWrapper() {
   const [scrapingProgress, setScrapingProgress] = useState<ScrapingProgress | null>(null);
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [scrapingComplete, setScrapingComplete] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [lastScrapeStats, setLastScrapeStats] = useState<{
     totalFound: number;
     processed: number;
@@ -178,17 +183,42 @@ export function MadlanScraperWrapper() {
         totalCount: data.totalCount
       });
 
+      // Trigger success animation
+      setSaveSuccess(true);
+
+      // Show success toast with detailed info
+      toast({
+        title: "🎉 נכסים נשמרו בהצלחה!",
+        description: `נשמרו ${data.savedCount} נכסים חדשים${data.updatedCount > 0 ? `, עודכנו ${data.updatedCount}` : ''}${data.skippedDuplicates > 0 ? `, דילגו על ${data.skippedDuplicates} כפולים` : ''}`,
+        className: "border-green-200 bg-green-50 text-green-800",
+      });
+
       // Clear progress after delay
       setTimeout(() => {
         setScrapingProgress(null);
         setSaveStatus(null);
-      }, 5000);
+        setSaveSuccess(false);
+      }, 8000);
     } catch (err) {
       setScrapingProgress(null);
+      const errorMessage = err instanceof Error ? err.message : 'שגיאה בשמירת הנכסים';
+      
       setSaveStatus({
         success: false,
-        message: err instanceof Error ? err.message : 'שגיאה בשמירת הנכסים'
+        message: errorMessage
       });
+
+      // Show error toast
+      toast({
+        title: "❌ שגיאה בשמירה",
+        description: errorMessage,
+        variant: "destructive",
+      });
+
+      // Clear save status after delay
+      setTimeout(() => {
+        setSaveStatus(null);
+      }, 5000);
     } finally {
       setIsSaving(false);
     }
@@ -422,29 +452,43 @@ export function MadlanScraperWrapper() {
 
       {/* Success Summary */}
       {hasResults && lastScrapeStats && !isLoading && (
-        <Card className="border-green-200 bg-gradient-to-r from-green-50 to-blue-50">
+        <Card className={`border-green-200 ${saveSuccess ? 'bg-gradient-to-r from-green-100 via-blue-50 to-green-100 animate-pulse shadow-lg' : 'bg-gradient-to-r from-green-50 to-blue-50'} transition-all duration-1000`}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                  <div className="absolute -top-1 -right-1 h-3 w-3 bg-green-400 rounded-full animate-ping" />
+                  {saveSuccess ? (
+                    <>
+                      <PartyPopper className="h-6 w-6 text-green-600 animate-bounce" />
+                      <Heart className="absolute -top-2 -right-2 h-4 w-4 text-pink-500 animate-ping" />
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                      <div className="absolute -top-1 -right-1 h-3 w-3 bg-green-400 rounded-full animate-ping" />
+                    </>
+                  )}
                 </div>
                 <div>
-                  <div className="font-semibold text-green-800 flex items-center gap-2">
+                  <div className={`font-semibold ${saveSuccess ? 'text-green-900' : 'text-green-800'} flex items-center gap-2`}>
                     <Rocket className="h-4 w-4" />
-                    גירוד הושלם בהצלחה!
+                    {saveSuccess ? '🎉 נשמר בהצלחה!' : 'גירוד הושלם בהצלחה!'}
                   </div>
                   <div className="text-sm text-green-600 flex items-center gap-4">
                     <span>נמצאו {lastScrapeStats.totalFound} נכסים</span>
                     <span>זמן: {lastScrapeStats.timeElapsed}</span>
+                    {saveSuccess && (
+                      <Badge className="bg-green-200 text-green-800 animate-bounce">
+                        נשמר! ✓
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
               
               <Button
                 onClick={() => setShowResultsModal(true)}
-                className="gap-2 bg-green-600 hover:bg-green-700"
+                className={`gap-2 ${saveSuccess ? 'bg-green-700 hover:bg-green-800 shadow-lg' : 'bg-green-600 hover:bg-green-700'} transition-all duration-300`}
                 size="sm"
               >
                 <Eye className="h-4 w-4" />
