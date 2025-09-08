@@ -1,31 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { MadlanResultsModal } from './madlan-results-modal';
 import { 
   Search, 
-  MapPin, 
-  Home, 
-  DollarSign, 
-  Bed, 
-  Square, 
-  Calendar,
-  Building,
-  Car,
-  Wifi,
-  Wind,
-  Shield,
   AlertCircle,
   Loader2,
-  Save,
-  CheckCircle
+  CheckCircle,
+  Eye,
+  Sparkles,
+  Zap,
+  TrendingUp,
+  Target,
+  Rocket,
+  Play
 } from 'lucide-react';
 
 interface MadlanListing {
@@ -50,18 +46,87 @@ interface MadlanListing {
   isPromoted: boolean;
 }
 
+interface SaveStatus {
+  success?: boolean;
+  message?: string;
+  savedCount?: number;
+  updatedCount?: number;
+  skippedDuplicates?: number;
+  totalCount?: number;
+}
+
+interface ScrapingProgress {
+  stage: 'urls' | 'scraping' | 'saving' | 'complete';
+  message: string;
+  current?: number;
+  total?: number;
+  completed?: number;
+  percentage?: number;
+}
+
 export function MadlanScraperWrapper() {
   const [searchUrl, setSearchUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [listings, setListings] = useState<MadlanListing[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('results');
   const [isPrivateOnly, setIsPrivateOnly] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<{ success?: boolean; message?: string } | null>(null);
-  const [scrapingProgress, setScrapingProgress] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
+  const [scrapingProgress, setScrapingProgress] = useState<ScrapingProgress | null>(null);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [scrapingComplete, setScrapingComplete] = useState(false);
+  const [lastScrapeStats, setLastScrapeStats] = useState<{
+    totalFound: number;
+    processed: number;
+    timeElapsed: string;
+  } | null>(null);
 
+  // Auto-open modal when scraping completes
+  useEffect(() => {
+    if (scrapingComplete && listings.length > 0) {
+      setShowResultsModal(true);
+      setScrapingComplete(false);
+    }
+  }, [scrapingComplete, listings.length]);
 
+  // Poll for real-time progress updates
+  const pollProgress = async (sessionId: string) => {
+    const maxAttempts = 300; // 5 minutes max (every 1000ms)
+    let attempts = 0;
+    
+    const poll = async (): Promise<void> => {
+      try {
+        attempts++;
+        const response = await fetch(`/api/scrape-madlan-progress?sessionId=${sessionId}`);
+        const data = await response.json();
+        
+        if (data.progress) {
+          setScrapingProgress(data.progress);
+          
+          // If complete or error, stop polling
+          if (data.progress.stage === 'complete' || data.progress.stage === 'error') {
+            return;
+          }
+          
+          // Continue polling if still in progress and under max attempts
+          if (attempts < maxAttempts) {
+            setTimeout(poll, 1000); // Poll every second
+          }
+        } else if (attempts < maxAttempts) {
+          // No progress yet, keep polling
+          setTimeout(poll, 1000);
+        }
+      } catch (error) {
+        console.error('Progress polling error:', error);
+        // Continue polling on error if under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 2000); // Wait a bit longer on error
+        }
+      }
+    };
+    
+    poll();
+  };
 
   const handleSaveToSupabase = async () => {
     if (listings.length === 0) {
@@ -71,6 +136,11 @@ export function MadlanScraperWrapper() {
 
     setIsSaving(true);
     setSaveStatus(null);
+    setScrapingProgress({
+      stage: 'saving',
+      message: 'שומר נכסים למסד הנתונים...',
+      percentage: 0
+    });
 
     try {
       // Add source URL to each listing
@@ -93,16 +163,28 @@ export function MadlanScraperWrapper() {
         throw new Error(data.error || 'שגיאה בשמירת הנכסים');
       }
 
-      setSaveStatus({
-        success: true,
-        message: `נשמרו ${data.savedCount} מתוך ${data.totalCount} נכסים בהצלחה`
+      setScrapingProgress({
+        stage: 'complete',
+        message: 'נכסים נשמרו בהצלחה!',
+        percentage: 100
       });
 
-      // Clear listings after successful save
+      setSaveStatus({
+        success: true,
+        message: `נשמרו ${data.savedCount} מתוך ${data.totalCount} נכסים בהצלחה`,
+        savedCount: data.savedCount,
+        updatedCount: data.updatedCount,
+        skippedDuplicates: data.skippedDuplicates,
+        totalCount: data.totalCount
+      });
+
+      // Clear progress after delay
       setTimeout(() => {
+        setScrapingProgress(null);
         setSaveStatus(null);
       }, 5000);
     } catch (err) {
+      setScrapingProgress(null);
       setSaveStatus({
         success: false,
         message: err instanceof Error ? err.message : 'שגיאה בשמירת הנכסים'
@@ -113,15 +195,20 @@ export function MadlanScraperWrapper() {
   };
 
   const handleScrape = async () => {
+    if (!searchUrl.includes('madlan.co.il')) {
+      setError('נא להזין כתובת URL תקינה של מדלן');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    setScrapingProgress('מתחיל גירוד נתונים...');
+    setSaveStatus(null);
+    setListings([]);
+    setLastScrapeStats(null);
+    
+    const startTime = Date.now();
 
     try {
-      if (!searchUrl.includes('madlan.co.il')) {
-        throw new Error('נא להזין כתובת URL תקינה של מדלן');
-      }
-
       // Modify URL to add private filter if needed
       let finalUrl = searchUrl;
       if (isPrivateOnly && !searchUrl.includes('private')) {
@@ -134,14 +221,19 @@ export function MadlanScraperWrapper() {
         }
       }
 
-      // Use Firecrawl to scrape the actual Madlan page
-      setScrapingProgress('גורד עמודי נכסים בודדים לקבלת מידע מלא...');
+      // Generate unique session ID for progress tracking
+      const sessionId = `madlan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Start polling for progress updates
+      pollProgress(sessionId);
+
+      // Start actual scraping with session ID
       const response = await fetch('/api/scrape-madlan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: finalUrl }),
+        body: JSON.stringify({ url: finalUrl, sessionId }),
       });
 
       if (!response.ok) {
@@ -154,51 +246,63 @@ export function MadlanScraperWrapper() {
         throw new Error(data.error);
       }
 
+      const endTime = Date.now();
+      const timeElapsed = ((endTime - startTime) / 1000).toFixed(1) + ' שניות';
+
       setListings(data.listings || []);
-      setActiveTab('results');
-      setScrapingProgress(null);
+      setLastScrapeStats({
+        totalFound: data.listings?.length || 0,
+        processed: data.listings?.length || 0,
+        timeElapsed
+      });
+      setScrapingComplete(true);
+      
+      // Clear progress after showing completion
+      setTimeout(() => {
+        setScrapingProgress(null);
+      }, 2000);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בטעינת הנתונים');
       setListings([]);
       setScrapingProgress(null);
     } finally {
       setIsLoading(false);
-      setScrapingProgress(null);
     }
   };
 
-  const getAmenityIcon = (amenity: string) => {
-    const iconMap: Record<string, React.ReactNode> = {
-      'מיזוג': <Wind className="h-4 w-4" />,
-      'מיזוג מרכזי': <Wind className="h-4 w-4" />,
-      'חניה': <Car className="h-4 w-4" />,
-      '2 חניות': <Car className="h-4 w-4" />,
-      'מעלית': <Building className="h-4 w-4" />,
-      'אינטרנט': <Wifi className="h-4 w-4" />,
-      'ממ"ד': <Shield className="h-4 w-4" />,
-    };
-    return iconMap[amenity] || <Home className="h-4 w-4" />;
+  const resetScraping = () => {
+    setListings([]);
+    setError(null);
+    setSaveStatus(null);
+    setScrapingProgress(null);
+    setLastScrapeStats(null);
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('he-IL', {
-      style: 'currency',
-      currency: 'ILS',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(price);
-  };
+  const hasResults = listings.length > 0;
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
+            <div className="relative">
+              <Search className="h-5 w-5" />
+              {isLoading && (
+                <div className="absolute -top-1 -right-1 h-3 w-3">
+                  <Sparkles className="h-3 w-3 text-green-500 animate-pulse" />
+                </div>
+              )}
+            </div>
             חיפוש נכסים במדלן
+            {hasResults && (
+              <Badge className="bg-green-100 text-green-800 border-green-200 animate-bounce">
+                {listings.length} נמצאו!
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
-            הזן כתובת URL של דף חיפוש במדלן לגירוד נתונים
+            הזן כתובת URL של דף חיפוש במדלן לגירוד נתונים מהיר ומקבילי
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -206,14 +310,18 @@ export function MadlanScraperWrapper() {
             <Input
               placeholder="https://www.madlan.co.il/for-rent/תל-אביב-יפו-ישראל"
               value={searchUrl}
-              onChange={(e) => setSearchUrl(e.target.value)}
+              onChange={(e) => {
+                setSearchUrl(e.target.value);
+                if (error) setError(null);
+              }}
               className="flex-1"
               dir="ltr"
+              disabled={isLoading}
             />
             <Button 
               onClick={handleScrape}
               disabled={isLoading || !searchUrl}
-              className="min-w-[120px]"
+              className="min-w-[140px] relative overflow-hidden group"
             >
               {isLoading ? (
                 <>
@@ -221,7 +329,13 @@ export function MadlanScraperWrapper() {
                   מחפש...
                 </>
               ) : (
-                'חפש נכסים'
+                <>
+                  <Play className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" />
+                  חפש נכסים
+                </>
+              )}
+              {!isLoading && (
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
               )}
             </Button>
           </div>
@@ -231,301 +345,132 @@ export function MadlanScraperWrapper() {
               id="private-only"
               checked={isPrivateOnly}
               onCheckedChange={(checked) => setIsPrivateOnly(checked as boolean)}
+              disabled={isLoading}
             />
-            <Label htmlFor="private-only" className="text-sm">
+            <Label htmlFor="private-only" className="text-sm flex items-center gap-1">
+              <Target className="h-3 w-3" />
               חיפוש עסקאות פרטיות בלבד
             </Label>
           </div>
 
           <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-            <span>דוגמאות לחיפוש:</span>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0"
-              onClick={() => setSearchUrl('https://www.madlan.co.il/for-rent/תל-אביב-יפו-ישראל')}
-            >
-              השכרה בתל אביב
-            </Button>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0"
-              onClick={() => setSearchUrl('https://www.madlan.co.il/for-rent/ירושלים-ישראל')}
-            >
-              השכרה בירושלים
-            </Button>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0"
-              onClick={() => setSearchUrl('https://www.madlan.co.il/for-rent/חיפה-ישראל')}
-            >
-              השכרה בחיפה
-            </Button>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0"
-              onClick={() => setSearchUrl('https://www.madlan.co.il/for-rent/רחובות-ישראל')}
-            >
-              השכרה ברחובות
-            </Button>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0"
-              onClick={() => {
-                setSearchUrl('https://www.madlan.co.il/for-rent/חיפה-ישראל');
-                setIsPrivateOnly(true);
-              }}
-            >
-              עסקאות פרטיות בחיפה
-            </Button>
+            <span className="flex items-center gap-1">
+              <Zap className="h-3 w-3" />
+              דוגמאות לחיפוש:
+            </span>
+            {[
+              { label: 'השכרה בתל אביב', url: 'https://www.madlan.co.il/for-rent/תל-אביב-יפו-ישראל' },
+              { label: 'השכרה בירושלים', url: 'https://www.madlan.co.il/for-rent/ירושלים-ישראל' },
+              { label: 'השכרה בחיפה', url: 'https://www.madlan.co.il/for-rent/חיפה-ישראל' },
+              { label: 'עסקאות פרטיות בחיפה', url: 'https://www.madlan.co.il/for-rent/חיפה-ישראל', private: true }
+            ].map((example, index) => (
+              <Button
+                key={index}
+                variant="link"
+                size="sm"
+                className="h-auto p-0 hover:scale-105 transition-transform"
+                disabled={isLoading}
+                onClick={() => {
+                  setSearchUrl(example.url);
+                  if (example.private) setIsPrivateOnly(true);
+                  resetScraping();
+                }}
+              >
+                {example.label}
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>
 
+      {/* Scraping Progress */}
       {scrapingProgress && (
-        <Alert>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <AlertTitle>מעבד נתונים</AlertTitle>
-          <AlertDescription>{scrapingProgress}</AlertDescription>
-        </Alert>
+        <Card className="border-green-200 bg-green-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="relative">
+                <Loader2 className="h-5 w-5 animate-spin text-green-600" />
+                <div className="absolute inset-0 rounded-full border border-green-300 animate-pulse" />
+              </div>
+              <div>
+                <div className="font-medium text-green-800">{scrapingProgress.message}</div>
+                <div className="text-sm text-green-600 space-y-1">
+                  {scrapingProgress.current && scrapingProgress.total && (
+                    <div>עכשיו עובד על: {scrapingProgress.current}/{scrapingProgress.total}</div>
+                  )}
+                  {scrapingProgress.completed !== undefined && scrapingProgress.total && (
+                    <div>הושלמו בהצלחה: {scrapingProgress.completed}/{scrapingProgress.total}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {scrapingProgress.percentage && (
+              <Progress value={scrapingProgress.percentage} className="h-2" />
+            )}
+          </CardContent>
+        </Card>
       )}
 
+      {/* Error Alert */}
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="animate-in slide-in-from-top-2">
           <AlertCircle className="h-4 w-4" />
+          <AlertTitle>שגיאה</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {listings.length > 0 && (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="flex justify-between items-center mb-4">
-            <TabsList className="grid grid-cols-2">
-              <TabsTrigger value="results">
-                תוצאות ({listings.length})
-              </TabsTrigger>
-              <TabsTrigger value="insights">
-                תובנות
-              </TabsTrigger>
-            </TabsList>
-            
-            <Button
-              onClick={handleSaveToSupabase}
-              disabled={isSaving || listings.length === 0}
-              className="gap-2"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  שומר...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  שמור לסופאבייס
-                </>
-              )}
-            </Button>
-          </div>
-          
-          {saveStatus && (
-            <Alert variant={saveStatus.success ? 'default' : 'destructive'} className="mb-4">
-              {saveStatus.success ? (
-                <CheckCircle className="h-4 w-4" />
-              ) : (
-                <AlertCircle className="h-4 w-4" />
-              )}
-              <AlertTitle>{saveStatus.success ? 'הצלחה!' : 'שגיאה'}</AlertTitle>
-              <AlertDescription>{saveStatus.message}</AlertDescription>
-            </Alert>
-          )}
-
-          <TabsContent value="results" className="space-y-4">
-            {listings.map((listing) => (
-              <Card key={listing.id} className="overflow-hidden">
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="md:col-span-1">
-                    <div className="relative h-48 md:h-full bg-gray-100">
-                      <img
-                        src={listing.images[0]}
-                        alt={listing.title}
-                        className="w-full h-full object-cover"
-                      />
-                      {listing.isPromoted && (
-                        <Badge className="absolute top-2 right-2" variant="secondary">
-                          מודעה מקודמת
-                        </Badge>
-                      )}
-                    </div>
+      {/* Success Summary */}
+      {hasResults && lastScrapeStats && !isLoading && (
+        <Card className="border-green-200 bg-gradient-to-r from-green-50 to-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <div className="absolute -top-1 -right-1 h-3 w-3 bg-green-400 rounded-full animate-ping" />
+                </div>
+                <div>
+                  <div className="font-semibold text-green-800 flex items-center gap-2">
+                    <Rocket className="h-4 w-4" />
+                    גירוד הושלם בהצלחה!
                   </div>
-                  
-                  <div className="md:col-span-2 p-6">
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="text-xl font-semibold mb-1">{listing.title}</h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{listing.address}, {listing.neighborhood}, {listing.city}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-4">
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4 text-green-600" />
-                          <span className="font-bold text-lg">{formatPrice(listing.price)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Bed className="h-4 w-4 text-blue-600" />
-                          <span>{listing.rooms} חדרים</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Square className="h-4 w-4 text-purple-600" />
-                          <span>{listing.area} מ"ר</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Building className="h-4 w-4 text-orange-600" />
-                          <span>
-                            {listing.totalFloors > 0 
-                              ? `קומה ${listing.floor} מתוך ${listing.totalFloors}`
-                              : listing.floor === 0
-                                ? 'קומת קרקע'
-                                : listing.floor === -1
-                                  ? 'מרתף' 
-                                  : listing.floor > 0
-                                    ? `קומה ${listing.floor}`
-                                    : 'לא צוין'
-                            }
-                          </span>
-                        </div>
-                      </div>
-
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {listing.description}
-                      </p>
-
-                      <div className="flex flex-wrap gap-2">
-                        {listing.amenities.map((amenity, index) => (
-                          <Badge key={index} variant="outline" className="flex items-center gap-1">
-                            {getAmenityIcon(amenity)}
-                            <span>{amenity}</span>
-                          </Badge>
-                        ))}
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            <span>כניסה: {new Date(listing.entryDate).toLocaleDateString('he-IL')}</span>
-                          </div>
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium">{listing.contactName}</span>
-                          <span className="text-muted-foreground"> • {listing.contactPhone}</span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="text-sm text-green-600 flex items-center gap-4">
+                    <span>נמצאו {lastScrapeStats.totalFound} נכסים</span>
+                    <span>זמן: {lastScrapeStats.timeElapsed}</span>
                   </div>
                 </div>
-              </Card>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="insights" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">מחיר ממוצע</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatPrice(
-                      listings.reduce((acc, l) => acc + l.price, 0) / listings.length
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    לחודש
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">גודל ממוצע</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {Math.round(
-                      listings.reduce((acc, l) => acc + l.area, 0) / listings.length
-                    )} מ"ר
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    שטח דירה
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">מחיר למ"ר</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatPrice(
-                      listings.reduce((acc, l) => acc + (l.price / l.area), 0) / listings.length
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ממוצע חודשי
-                  </p>
-                </CardContent>
-              </Card>
+              </div>
+              
+              <Button
+                onClick={() => setShowResultsModal(true)}
+                className="gap-2 bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                <Eye className="h-4 w-4" />
+                צפה בתוצאות
+              </Button>
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">התפלגות לפי סוג נכס</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(
-                    listings.reduce((acc, l) => {
-                      acc[l.propertyType] = (acc[l.propertyType] || 0) + 1;
-                      return acc;
-                    }, {} as Record<string, number>)
-                  ).map(([type, count]) => (
-                    <div key={type} className="flex items-center justify-between">
-                      <span className="text-sm">{type}</span>
-                      <Badge variant="secondary">{count}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">שירותים פופולריים</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {Array.from(
-                    new Set(listings.flatMap(l => l.amenities))
-                  ).map((amenity) => (
-                    <Badge key={amenity} variant="outline">
-                      {amenity}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Results Modal */}
+      <MadlanResultsModal
+        open={showResultsModal}
+        onOpenChange={setShowResultsModal}
+        listings={listings}
+        isLoading={isLoading}
+        onSave={handleSaveToSupabase}
+        isSaving={isSaving}
+        saveStatus={saveStatus}
+        searchUrl={searchUrl}
+        scrapingStats={lastScrapeStats ? {
+          totalFound: lastScrapeStats.totalFound,
+          processed: lastScrapeStats.processed,
+          saved: 0
+        } : undefined}
+      />
     </div>
   );
 }

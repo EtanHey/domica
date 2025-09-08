@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { progressTracker } from '@/lib/progress-tracker';
 
 interface MadlanListing {
   id: string;
@@ -25,7 +26,7 @@ interface MadlanListing {
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
+    const { url, sessionId } = await request.json();
 
     if (!url || !url.includes('madlan.co.il')) {
       return NextResponse.json(
@@ -39,6 +40,15 @@ export async function POST(request: NextRequest) {
     
     if (firecrawlApiKey) {
       try {
+        // Initialize progress tracking
+        if (sessionId) {
+          progressTracker.updateProgress(sessionId, {
+            stage: 'urls',
+            message: 'מחפש קישורי נכסים...',
+            percentage: 5
+          });
+        }
+        
         console.log('Step 1: Getting property URLs from list page:', url);
         
         // First, get the list of property URLs
@@ -80,15 +90,24 @@ export async function POST(request: NextRequest) {
         }
 
         const listData = await listResponse.json();
-        console.log('Found property URLs:', listData.data?.extract?.propertyUrls?.length || 0);
+        const foundUrls = listData.data?.extract?.propertyUrls?.length || 0;
+        console.log('Found property URLs:', foundUrls);
 
         if (!listData.success || !listData.data?.extract?.propertyUrls) {
+          if (sessionId) {
+            progressTracker.updateProgress(sessionId, {
+              stage: 'error',
+              message: 'לא נמצאו קישורי נכסים',
+              error: 'No property URLs found'
+            });
+          }
           throw new Error('No property URLs found');
         }
 
         const propertyUrls = listData.data.extract.propertyUrls;
         const listings: MadlanListing[] = [];
-
+        let completedCount = 0;
+        
         // Step 2: Scrape each individual property page in parallel
         console.log('Step 2: Scraping individual property pages in parallel...');
         
@@ -97,13 +116,39 @@ export async function POST(request: NextRequest) {
           ? parseInt(process.env.MADLAN_MAX_PROPERTIES || '50') // Production: default 50, configurable
           : parseInt(process.env.MADLAN_MAX_PROPERTIES || '10'); // Development: default 10
         
+        // Update progress with found URLs
+        if (sessionId) {
+          progressTracker.updateProgress(sessionId, {
+            stage: 'urls',
+            message: `נמצאו ${foundUrls} נכסים, מתחיל גירוד...`,
+            total: Math.min(propertyUrls.length, MAX_PROPERTIES),
+            completed: 0,
+            percentage: 15
+          });
+        }
+        
         console.log(`Configuration: Batch size=${BATCH_SIZE}, Max properties=${MAX_PROPERTIES}, Environment=${process.env.NODE_ENV || 'development'}`);
         const propertiesToScrape = propertyUrls.slice(0, Math.min(propertyUrls.length, MAX_PROPERTIES));
         
         // Process in batches
         for (let batchStart = 0; batchStart < propertiesToScrape.length; batchStart += BATCH_SIZE) {
           const batch = propertiesToScrape.slice(batchStart, Math.min(batchStart + BATCH_SIZE, propertiesToScrape.length));
-          console.log(`Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1}/${Math.ceil(propertiesToScrape.length / BATCH_SIZE)} (${batch.length} properties)`);
+          const batchNum = Math.floor(batchStart / BATCH_SIZE) + 1;
+          const totalBatches = Math.ceil(propertiesToScrape.length / BATCH_SIZE);
+          
+          console.log(`Processing batch ${batchNum}/${totalBatches} (${batch.length} properties)`);
+          
+          // Update progress for batch start
+          if (sessionId) {
+            progressTracker.updateProgress(sessionId, {
+              stage: 'scraping',
+              message: `מעבד חבילה ${batchNum}/${totalBatches} (${batch.length} נכסים)`,
+              current: batchStart + 1,
+              total: propertiesToScrape.length,
+              completed: completedCount,
+              percentage: progressTracker.calculatePercentage('scraping', batchStart, propertiesToScrape.length)
+            });
+          }
           
           const batchPromises = batch.map(async (propUrlData: { url: string; title?: string; price?: string }, batchIndex: number) => {
             const globalIndex = batchStart + batchIndex;
@@ -246,6 +291,7 @@ export async function POST(request: NextRequest) {
                   };
                   
                   console.log(`✓ Scraped: ${listing.title} - Contact: ${listing.contactName}`);
+                  
                   return listing;
                 }
               }
@@ -260,6 +306,19 @@ export async function POST(request: NextRequest) {
           const batchResults = await Promise.all(batchPromises);
           const validListings = batchResults.filter((listing): listing is MadlanListing => listing !== null);
           listings.push(...validListings);
+          completedCount += validListings.length;
+          
+          // Update progress after batch completion
+          if (sessionId) {
+            progressTracker.updateProgress(sessionId, {
+              stage: 'scraping',
+              message: `הושלמה חבילה ${batchNum}/${totalBatches} - נמצאו ${validListings.length} נכסים`,
+              current: batchStart + batch.length,
+              total: propertiesToScrape.length,
+              completed: completedCount,
+              percentage: progressTracker.calculatePercentage('scraping', batchStart + batch.length, propertiesToScrape.length)
+            });
+          }
           
           // Small delay between batches to avoid rate limits
           if (batchStart + BATCH_SIZE < propertiesToScrape.length) {
@@ -270,14 +329,40 @@ export async function POST(request: NextRequest) {
 
         console.log(`Successfully scraped ${listings.length} properties`);
         
+        // Update final progress
+        if (sessionId) {
+          progressTracker.updateProgress(sessionId, {
+            stage: 'complete',
+            message: `גירוד הושלם! נמצאו ${listings.length} נכסים`,
+            percentage: 100
+          });
+        }
+        
         if (listings.length > 0) {
-          return NextResponse.json({ listings });
+          return NextResponse.json({ listings, sessionId });
         } else {
+          if (sessionId) {
+            progressTracker.updateProgress(sessionId, {
+              stage: 'error',
+              message: 'לא נמצאו נכסים',
+              error: 'No properties found'
+            });
+          }
           throw new Error('לא הצלחנו לגרד נתונים מהנכסים');
         }
         
       } catch (firecrawlError) {
         console.error('Firecrawl failed:', firecrawlError);
+        
+        // Update progress with error
+        if (sessionId) {
+          progressTracker.updateProgress(sessionId, {
+            stage: 'error',
+            message: 'שגיאה בגירוד הנתונים',
+            error: firecrawlError instanceof Error ? firecrawlError.message : 'Unknown error'
+          });
+        }
+        
         return NextResponse.json({ 
           error: 'לא ניתן לגרד נתונים מהעמוד כרגע. אנא נסו שנית מאוחר יותר.',
           listings: []
